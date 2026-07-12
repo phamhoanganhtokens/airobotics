@@ -1,1 +1,703 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARC-9 · Robot Test Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#04060c;
+    --bg-deep:#010306;
+    --panel:rgba(9,17,32,.68);
+    --panel-border:rgba(79,216,255,.18);
+    --grid:rgba(79,216,255,.05);
+    --cyan:#4fd8ff;
+    --cyan-dim:#1f5f75;
+    --blue:#3f7dff;
+    --green:#3dffb0;
+    --amber:#ffb84f;
+    --red:#ff4f6d;
+    --text:#dfeaf7;
+    --text-dim:#7c8aa0;
+    --mono:#a9e4ff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(63,125,255,.10), transparent 60%),
+      radial-gradient(ellipse at 50% 100%, rgba(79,216,255,.06), transparent 55%),
+      var(--bg-deep);
+    color:var(--text);
+    font-family:'Rajdhani',sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:38px 38px;
+    pointer-events:none;
+    z-index:0;
+    mask-image:radial-gradient(ellipse at 50% 30%, black 0%, transparent 75%);
+  }
+  .wrap{position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:18px 20px 40px;}
 
+  /* ---------- header ---------- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; border:1px solid var(--panel-border);
+    background:var(--panel); border-radius:10px; backdrop-filter:blur(6px);
+    margin-bottom:16px; flex-wrap:wrap; gap:10px;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:38px;height:38px;border-radius:8px;
+    border:1px solid var(--cyan); position:relative;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 18px rgba(79,216,255,.35) inset, 0 0 12px rgba(79,216,255,.25);
+  }
+  .brand-mark span{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--cyan);font-weight:700;}
+  .brand-text .eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.18em;color:var(--text-dim);text-transform:uppercase;}
+  .brand-text h1{font-family:'Orbitron',sans-serif;font-size:18px;margin:2px 0 0;letter-spacing:.04em;font-weight:700;color:var(--text);}
+  .brand-text h1 em{font-style:normal;color:var(--cyan);}
+  .hdr-status{display:flex; gap:22px; align-items:center; flex-wrap:wrap;}
+  .hdr-stat{display:flex;flex-direction:column;align-items:flex-end;}
+  .hdr-stat .lbl{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--text-dim);letter-spacing:.14em;text-transform:uppercase;}
+  .hdr-stat .val{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--cyan);font-weight:700;}
+  .hdr-stat .val.on{color:var(--green);}
+  .clock{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--text);letter-spacing:.06em;padding:6px 12px;border:1px solid var(--panel-border);border-radius:6px;background:rgba(0,0,0,.25);}
+
+  /* ---------- main grid ---------- */
+  .stage{
+    display:grid;
+    grid-template-columns:280px 1fr 280px;
+    gap:16px;
+    align-items:stretch;
+  }
+  .col{display:flex;flex-direction:column;gap:16px;}
+
+  .panel{
+    border:1px solid var(--panel-border);
+    background:var(--panel);
+    border-radius:10px;
+    padding:14px 14px 16px;
+    backdrop-filter:blur(6px);
+    position:relative;
+    overflow:hidden;
+  }
+  .panel::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:1px;
+    background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity:.5;
+  }
+  .panel-title{
+    display:flex; align-items:center; gap:8px;
+    font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:.14em;
+    color:var(--cyan); text-transform:uppercase; margin-bottom:10px;
+  }
+  .panel-title::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);}
+
+  /* neural net */
+  #netCanvas{width:100%; height:150px; display:block; border-radius:6px; background:rgba(0,0,0,.25);}
+
+  /* humanoid status */
+  .vitals{display:flex; gap:12px; align-items:center;}
+  .vitals svg{flex:0 0 70px;}
+  .vitals-list{flex:1; display:flex; flex-direction:column; gap:6px;}
+  .vrow{display:flex; justify-content:space-between; font-size:12.5px;}
+  .vrow .k{color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.05em; text-transform:uppercase;}
+  .vrow .v{font-family:'JetBrains Mono',monospace; color:var(--mono); font-weight:700;}
+
+  /* muscle sim */
+  .musclewrap{display:flex; gap:12px;}
+  .musclewrap svg{flex:0 0 78px;}
+  .bars{flex:1; display:flex; align-items:flex-end; gap:4px; height:96px; padding-top:6px;}
+  .bars i{flex:1; background:linear-gradient(180deg, var(--cyan), var(--blue)); border-radius:2px 2px 0 0; opacity:.85; animation:barpulse 2.4s ease-in-out infinite;}
+
+  /* training metrics */
+  .metrics{display:flex;flex-direction:column;gap:7px;}
+  .mrow{display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px dashed rgba(79,216,255,.12); padding-bottom:5px;}
+  .mrow .k{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); letter-spacing:.08em; text-transform:uppercase;}
+  .mrow .v{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--text); font-weight:700;}
+  .mrow .v.accent{color:var(--green);}
+  .mrow .v.status-idle{color:var(--amber);}
+  .mrow .v.status-run{color:var(--green);}
+
+  /* ---------- center stage ---------- */
+  .center-panel{
+    border:1px solid var(--panel-border);
+    background:radial-gradient(ellipse at 50% 20%, rgba(63,125,255,.08), transparent 60%), var(--panel);
+    border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    padding:16px 10px 0;
+    position:relative;
+    min-height:520px;
+    overflow:hidden;
+  }
+  .center-topline{
+    position:absolute; top:14px; left:0; right:0;
+    display:flex; justify-content:space-between; padding:0 18px;
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); letter-spacing:.12em;
+    text-transform:uppercase; z-index:3;
+  }
+  .center-topline b{color:var(--cyan); font-weight:700;}
+  .robot-id{
+    font-family:'Orbitron',sans-serif; font-size:12px; color:var(--cyan); letter-spacing:.1em;
+    position:absolute; top:38px; left:50%; transform:translateX(-50%); text-align:center; z-index:3;
+  }
+  .robot-id .mode{
+    display:block; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:4px; letter-spacing:.14em;
+  }
+  #modeTxt.testing{color:var(--green);}
+  #modeTxt.stopped{color:var(--red);}
+
+  .rig{position:relative; width:100%; flex:1; display:flex; align-items:center; justify-content:center;}
+  #robotSvg{width:230px; height:auto; filter:drop-shadow(0 0 14px rgba(79,216,255,.35));}
+  .scanline{
+    position:absolute; left:8%; right:8%; height:2px; top:20%;
+    background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity:.6; animation:scan 3.4s linear infinite;
+  }
+
+  .platform{width:88%; max-width:340px; position:relative; padding-bottom:16px;}
+  .platform svg{width:100%; display:block;}
+
+  .flash-overlay{
+    position:absolute; inset:0; background:rgba(255,79,109,.18); opacity:0; pointer-events:none;
+    transition:opacity .15s; z-index:5;
+  }
+  .flash-overlay.active{opacity:1; animation:flashpulse .6s ease-out 2;}
+
+  /* ---------- console ---------- */
+  .console{
+    margin-top:16px; border:1px solid var(--panel-border); background:var(--panel);
+    border-radius:10px; padding:16px; backdrop-filter:blur(6px);
+  }
+  .console-row{display:flex; gap:10px; margin-bottom:14px;}
+  #cmdInput{
+    flex:1; background:rgba(0,0,0,.35); border:1px solid var(--panel-border); border-radius:6px;
+    padding:10px 14px; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:15px; outline:none;
+  }
+  #cmdInput:focus{border-color:var(--cyan); box-shadow:0 0 0 2px rgba(79,216,255,.15);}
+  .btn{
+    font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    border-radius:6px; border:1px solid var(--panel-border); background:rgba(79,216,255,.08);
+    color:var(--cyan); padding:10px 16px; cursor:pointer; transition:.15s; white-space:nowrap;
+  }
+  .btn:hover{background:rgba(79,216,255,.18); border-color:var(--cyan);}
+  .btn:active{transform:translateY(1px);}
+  .btn.mic{padding:10px 14px;}
+  .btn.mic.listening{background:var(--red); color:#fff; border-color:var(--red); animation:micpulse 1s infinite;}
+
+  .quick-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(96px,1fr)); gap:8px; margin-bottom:12px;}
+  .qbtn{
+    font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13.5px;
+    border:1px solid var(--panel-border); background:rgba(255,255,255,.02); color:var(--text);
+    border-radius:6px; padding:10px 8px; cursor:pointer; transition:.15s; text-align:center;
+  }
+  .qbtn:hover{border-color:var(--cyan); color:var(--cyan); background:rgba(79,216,255,.08);}
+  .qbtn:disabled{opacity:.3; cursor:not-allowed;}
+
+  .estop{
+    width:100%; padding:13px; border-radius:8px; border:1px solid var(--red);
+    background:rgba(255,79,109,.1); color:var(--red); font-family:'Orbitron',sans-serif;
+    font-size:13px; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; font-weight:700;
+    transition:.15s;
+  }
+  .estop:hover{background:var(--red); color:#04060c;}
+  .estop:disabled{opacity:.35; cursor:not-allowed;}
+
+  .log{
+    margin-top:14px; height:150px; overflow-y:auto; background:rgba(0,0,0,.35);
+    border:1px solid var(--panel-border); border-radius:6px; padding:10px 12px;
+    font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.65;
+  }
+  .log::-webkit-scrollbar{width:6px;}
+  .log::-webkit-scrollbar-thumb{background:var(--cyan-dim); border-radius:3px;}
+  .log-line{white-space:pre-wrap;}
+  .log-line .t{color:var(--text-dim); margin-right:8px;}
+  .log-line.info .m{color:var(--mono);}
+  .log-line.action .m{color:var(--green);}
+  .log-line.warn .m{color:var(--amber);}
+  .log-line.error .m{color:var(--red);}
+  .log-clear{float:right; background:none; border:none; color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:10px; cursor:pointer; letter-spacing:.08em; text-transform:uppercase;}
+  .log-clear:hover{color:var(--cyan);}
+
+  /* ---------- robot pose animations ---------- */
+  #robot{transform-box:fill-box; transform-origin:center bottom;}
+  .armL, .armR, .legL, .legR{transform-box:fill-box;}
+  .armL{transform-origin:50% 8%;}
+  .armR{transform-origin:50% 8%;}
+  .legL{transform-origin:50% 0%;}
+  .legR{transform-origin:50% 0%;}
+
+  #robot[data-pose="idle"] .armR{animation:idleSway 4s ease-in-out infinite;}
+  #robot[data-pose="idle"] .armL{animation:idleSway 4s ease-in-out infinite reverse;}
+  #robot[data-pose="wave"] .armR{animation:wave .55s ease-in-out 4;}
+  #robot[data-pose="raise"] .armR{animation:raiseArm .6s ease-out forwards;}
+  #robot[data-pose="raise"] .armL{animation:raiseArm .6s ease-out forwards;}
+  #robot[data-pose="spin"]{animation:spin 1.1s cubic-bezier(.5,0,.5,1);}
+  #robot[data-pose="flip"]{animation:flip 1s cubic-bezier(.4,0,.3,1);}
+  #robot[data-pose="jump"]{animation:jump .75s ease-in-out;}
+  #robot[data-pose="walkf"]{animation:bobwalk .9s ease-in-out infinite;}
+  #robot[data-pose="walkf"] .legL{animation:legSwing .45s ease-in-out infinite;}
+  #robot[data-pose="walkf"] .legR{animation:legSwing .45s ease-in-out infinite reverse;}
+  #robot[data-pose="walkb"]{animation:bobwalk .9s ease-in-out infinite;}
+  #robot[data-pose="walkb"] .legL{animation:legSwing .5s ease-in-out infinite reverse;}
+  #robot[data-pose="walkb"] .legR{animation:legSwing .5s ease-in-out infinite;}
+  #robot[data-pose="sit"]{animation:sitDown .5s ease-out forwards;}
+  #robot[data-pose="stand"]{animation:standUp .5s ease-out forwards;}
+  #robot[data-pose="estop"]{animation:none; opacity:.55;}
+
+  @keyframes idleSway{0%,100%{transform:rotate(0deg);}50%{transform:rotate(4deg);}}
+  @keyframes wave{0%,100%{transform:rotate(0deg);}25%{transform:rotate(-55deg);}75%{transform:rotate(-25deg);}}
+  @keyframes raiseArm{to{transform:rotate(-165deg);}}
+  @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  @keyframes flip{0%{transform:translateY(0) rotate(0deg) scale(1,1);}30%{transform:translateY(-40px) rotate(150deg) scale(.9,1.1);}60%{transform:translateY(-10px) rotate(320deg) scale(1.05,.9);}100%{transform:translateY(0) rotate(360deg) scale(1,1);}}
+  @keyframes jump{0%,100%{transform:translateY(0);}40%{transform:translateY(-46px);}60%{transform:translateY(-46px);}}
+  @keyframes bobwalk{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+  @keyframes legSwing{0%,100%{transform:rotate(18deg);}50%{transform:rotate(-18deg);}}
+  @keyframes sitDown{to{transform:translateY(28px) scaleY(.82);}}
+  @keyframes standUp{to{transform:translateY(0) scaleY(1);}}
+
+  @keyframes scan{0%{top:12%;}100%{top:88%;}}
+  @keyframes flashpulse{0%,100%{opacity:.05;}50%{opacity:.35;}}
+  @keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,79,109,.5);}50%{box-shadow:0 0 0 8px rgba(255,79,109,0);}}
+  @keyframes barpulse{0%,100%{transform:scaleY(1);}50%{transform:scaleY(.7);}}
+  .ring{animation:ringspin 18s linear infinite; transform-origin:50% 50%;}
+  @keyframes ringspin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+
+  footer{margin-top:18px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); letter-spacing:.1em;}
+
+  @media (max-width:980px){
+    .stage{grid-template-columns:1fr;}
+    .center-panel{order:-1; min-height:420px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark"><span>AI</span></div>
+      <div class="brand-text">
+        <div class="eyebrow">AI Laboratories · Humanoid Division</div>
+        <h1>ARC‑9 <em>Test Console</em></h1>
+      </div>
+    </div>
+    <div class="hdr-status">
+      <div class="hdr-stat"><span class="lbl">Power</span><span class="val on">ONLINE</span></div>
+      <div class="hdr-stat"><span class="lbl">Battery</span><span class="val" id="battVal">96%</span></div>
+      <div class="hdr-stat"><span class="lbl">Servo Temp</span><span class="val" id="tempVal">34°C</span></div>
+      <div class="clock" id="clock">00:00:00</div>
+    </div>
+  </header>
+
+  <div class="stage">
+
+    <!-- LEFT COLUMN -->
+    <div class="col">
+      <div class="panel">
+        <div class="panel-title">Neural Network Analysis</div>
+        <canvas id="netCanvas"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Humanoid Status</div>
+        <div class="vitals">
+          <svg viewBox="0 0 60 120">
+            <g stroke="var(--cyan)" stroke-width="2" fill="none" opacity=".8">
+              <circle cx="30" cy="12" r="9"/>
+              <line x1="30" y1="21" x2="30" y2="65"/>
+              <line x1="30" y1="30" x2="10" y2="50"/>
+              <line x1="30" y1="30" x2="50" y2="50"/>
+              <line x1="30" y1="65" x2="12" y2="110"/>
+              <line x1="30" y1="65" x2="48" y2="110"/>
+              <circle cx="30" cy="30" r="2" fill="var(--cyan)"/>
+              <circle cx="30" cy="65" r="2" fill="var(--cyan)"/>
+            </g>
+          </svg>
+          <div class="vitals-list" id="vitalsList">
+            <div class="vrow"><span class="k">Balance</span><span class="v" id="v-balance">99.2%</span></div>
+            <div class="vrow"><span class="k">Posture</span><span class="v" id="v-posture">NOMINAL</span></div>
+            <div class="vrow"><span class="k">Joint Load</span><span class="v" id="v-load">12%</span></div>
+            <div class="vrow"><span class="k">Latency</span><span class="v" id="v-latency">8ms</span></div>
+            <div class="vrow"><span class="k">Uptime</span><span class="v" id="v-uptime">00:00:00</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER STAGE -->
+    <div class="center-panel">
+      <div class="flash-overlay" id="flashOverlay"></div>
+      <div class="center-topline"><span>SYS <b id="sysState">READY</b></span><span>REC <b id="recDot">●</b></span></div>
+      <div class="robot-id">ARC‑9 · TITAN‑NX
+        <span class="mode" id="modeTxt">CHỜ LỆNH</span>
+      </div>
+      <div class="rig">
+        <div class="scanline"></div>
+        <svg id="robotSvg" viewBox="0 0 200 380" xmlns="http://www.w3.org/2000/svg">
+          <g id="robot" data-pose="idle" fill="none" stroke="var(--cyan)" stroke-width="2.4" stroke-linecap="round">
+            <!-- head -->
+            <circle cx="100" cy="34" r="20" fill="rgba(79,216,255,.06)"/>
+            <circle cx="93" cy="32" r="2.4" fill="var(--cyan)" stroke="none"/>
+            <circle cx="107" cy="32" r="2.4" fill="var(--cyan)" stroke="none"/>
+            <!-- torso -->
+            <path d="M75,58 L125,58 L132,170 L68,170 Z" fill="rgba(79,216,255,.05)"/>
+            <circle cx="100" cy="105" r="10" stroke="var(--blue)" fill="rgba(63,125,255,.12)"/>
+            <line x1="100" y1="58" x2="100" y2="170" stroke="rgba(79,216,255,.3)" stroke-width="1"/>
+            <!-- arms -->
+            <g class="armR">
+              <line x1="125" y1="66" x2="150" y2="120" />
+              <line x1="150" y1="120" x2="148" y2="168" />
+              <circle cx="148" cy="168" r="4" fill="var(--cyan)" stroke="none"/>
+            </g>
+            <g class="armL">
+              <line x1="75" y1="66" x2="50" y2="120" />
+              <line x1="50" y1="120" x2="52" y2="168" />
+              <circle cx="52" cy="168" r="4" fill="var(--cyan)" stroke="none"/>
+            </g>
+            <!-- legs -->
+            <g class="legR">
+              <line x1="112" y1="170" x2="118" y2="255" />
+              <line x1="118" y1="255" x2="116" y2="330" />
+              <line x1="116" y1="330" x2="132" y2="336" />
+            </g>
+            <g class="legL">
+              <line x1="88" y1="170" x2="82" y2="255" />
+              <line x1="82" y1="255" x2="84" y2="330" />
+              <line x1="84" y1="330" x2="68" y2="336" />
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="platform">
+        <svg viewBox="0 0 340 90">
+          <g class="ring">
+            <ellipse cx="170" cy="40" rx="150" ry="26" fill="none" stroke="var(--cyan)" stroke-width="1" opacity=".35"/>
+            <ellipse cx="170" cy="40" rx="150" ry="26" fill="none" stroke="var(--cyan)" stroke-width="1" opacity=".2" stroke-dasharray="4 10"/>
+          </g>
+          <ellipse cx="170" cy="42" rx="118" ry="18" fill="rgba(79,216,255,.08)" stroke="var(--cyan)" stroke-width="1.4"/>
+          <ellipse cx="170" cy="42" rx="70" ry="10" fill="rgba(79,216,255,.18)"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col">
+      <div class="panel">
+        <div class="panel-title">Muscle Simulation</div>
+        <div class="musclewrap">
+          <svg viewBox="0 0 60 120">
+            <g stroke="var(--blue)" stroke-width="2" fill="rgba(63,125,255,.15)">
+              <circle cx="30" cy="12" r="8"/>
+              <rect x="18" y="22" width="24" height="34" rx="6"/>
+              <rect x="8" y="24" width="8" height="30" rx="4"/>
+              <rect x="44" y="24" width="8" height="30" rx="4"/>
+              <rect x="16" y="58" width="12" height="34" rx="5"/>
+              <rect x="32" y="58" width="12" height="34" rx="5"/>
+            </g>
+          </svg>
+          <div class="bars" id="muscleBars"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">AI Training Metrics</div>
+        <div class="metrics">
+          <div class="mrow"><span class="k">Learning Rate</span><span class="v" id="m-lr">3.0e-4</span></div>
+          <div class="mrow"><span class="k">Accuracy</span><span class="v accent" id="m-acc">98.72%</span></div>
+          <div class="mrow"><span class="k">Test Time</span><span class="v" id="m-time">00:00:00</span></div>
+          <div class="mrow"><span class="k">Epoch</span><span class="v" id="m-epoch">2847</span></div>
+          <div class="mrow"><span class="k">Dataset</span><span class="v">HUMANOID_V3</span></div>
+          <div class="mrow"><span class="k">Model</span><span class="v">TITAN‑NX</span></div>
+          <div class="mrow"><span class="k">Status</span><span class="v status-idle" id="m-status">READY</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONSOLE -->
+  <div class="console">
+    <div class="console-row">
+      <input id="cmdInput" type="text" placeholder="Nhập lệnh test robot… (vd: vẫy tay, tiến, nhảy, ngồi xuống)" autocomplete="off">
+      <button class="btn" id="sendBtn">Gửi lệnh</button>
+      <button class="btn mic" id="micBtn" title="Điều khiển giọng nói">🎤</button>
+    </div>
+
+    <div class="quick-grid">
+      <button class="qbtn" data-pose="walkf" data-label="Tiến">Tiến →</button>
+      <button class="qbtn" data-pose="walkb" data-label="Lùi">← Lùi</button>
+      <button class="qbtn" data-pose="spin" data-label="Quay">Quay 🔄</button>
+      <button class="qbtn" data-pose="jump" data-label="Nhảy">Nhảy ↑</button>
+      <button class="qbtn" data-pose="flip" data-label="Nhào lộn">Nhào lộn 🤸</button>
+      <button class="qbtn" data-pose="wave" data-label="Vẫy tay">Vẫy tay 👋</button>
+      <button class="qbtn" data-pose="sit" data-label="Ngồi">Ngồi ⬇</button>
+      <button class="qbtn" data-pose="stand" data-label="Đứng">Đứng ⬆</button>
+      <button class="qbtn" data-pose="raise" data-label="Giơ tay">Giơ tay ✋</button>
+    </div>
+
+    <button class="estop" id="estopBtn">⏹ Dừng khẩn cấp</button>
+
+    <div class="log" id="log">
+      <button class="log-clear" id="clearLog">Xoá log</button>
+    </div>
+  </div>
+
+  <footer>ARC‑9 SIMULATION ENVIRONMENT · KHÔNG KẾT NỐI PHẦN CỨNG THẬT · DÙNG ĐỂ THỬ NGHIỆM GIAO DIỆN</footer>
+</div>
+
+<script>
+(function(){
+  const robot = document.getElementById('robot');
+  const modeTxt = document.getElementById('modeTxt');
+  const sysState = document.getElementById('sysState');
+  const flashOverlay = document.getElementById('flashOverlay');
+  const logEl = document.getElementById('log');
+  const cmdInput = document.getElementById('cmdInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const micBtn = document.getElementById('micBtn');
+  const estopBtn = document.getElementById('estopBtn');
+  const clearLogBtn = document.getElementById('clearLog');
+  const qbtns = document.querySelectorAll('.qbtn');
+  const mStatus = document.getElementById('m-status');
+  const mEpoch = document.getElementById('m-epoch');
+  const mAcc = document.getElementById('m-acc');
+
+  let locked = false;
+  let startTime = Date.now();
+  let epoch = 2847;
+
+  // ---------- clock / uptime ----------
+  function pad(n){return n.toString().padStart(2,'0');}
+  function tick(){
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+    const up = Math.floor((Date.now()-startTime)/1000);
+    const h=Math.floor(up/3600), m=Math.floor((up%3600)/60), s=up%60;
+    const upStr = pad(h)+':'+pad(m)+':'+pad(s);
+    document.getElementById('v-uptime').textContent = upStr;
+    document.getElementById('m-time').textContent = upStr;
+  }
+  setInterval(tick,1000); tick();
+
+  // ---------- vitals / metrics live fluctuation ----------
+  function jitter(base, spread, decimals=1){
+    return (base + (Math.random()*2-1)*spread).toFixed(decimals);
+  }
+  setInterval(()=>{
+    document.getElementById('v-balance').textContent = jitter(99,0.6)+'%';
+    document.getElementById('v-load').textContent = Math.max(4,Math.round(jitter(14,8,0)))+'%';
+    document.getElementById('v-latency').textContent = Math.max(3,Math.round(jitter(8,3,0)))+'ms';
+    document.getElementById('battVal').textContent = Math.max(70,Math.round(jitter(94,2,0)))+'%';
+    document.getElementById('tempVal').textContent = Math.round(jitter(35,2,0))+'°C';
+    mAcc.textContent = jitter(98.7,0.3,2)+'%';
+  },1800);
+
+  // ---------- neural net canvas ----------
+  const canvas = document.getElementById('netCanvas');
+  const ctx = canvas.getContext('2d');
+  function fitCanvas(){
+    canvas.width = canvas.clientWidth * devicePixelRatio;
+    canvas.height = canvas.clientHeight * devicePixelRatio;
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  }
+  window.addEventListener('resize', fitCanvas);
+  const NODES = Array.from({length:22}, ()=>({
+    x:Math.random(), y:Math.random(),
+    vx:(Math.random()-0.5)*0.0018, vy:(Math.random()-0.5)*0.0018
+  }));
+  function drawNet(){
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    ctx.clearRect(0,0,w,h);
+    NODES.forEach(n=>{
+      n.x+=n.vx; n.y+=n.vy;
+      if(n.x<0||n.x>1)n.vx*=-1;
+      if(n.y<0||n.y>1)n.vy*=-1;
+    });
+    for(let i=0;i<NODES.length;i++){
+      for(let j=i+1;j<NODES.length;j++){
+        const a=NODES[i], b=NODES[j];
+        const dx=(a.x-b.x)*w, dy=(a.y-b.y)*h;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<70){
+          ctx.strokeStyle = 'rgba(79,216,255,'+(0.35*(1-d/70))+')';
+          ctx.lineWidth=1;
+          ctx.beginPath();
+          ctx.moveTo(a.x*w,a.y*h); ctx.lineTo(b.x*w,b.y*h);
+          ctx.stroke();
+        }
+      }
+    }
+    NODES.forEach(n=>{
+      ctx.fillStyle='rgba(79,216,255,0.9)';
+      ctx.beginPath(); ctx.arc(n.x*w,n.y*h,2,0,Math.PI*2); ctx.fill();
+    });
+    requestAnimationFrame(drawNet);
+  }
+  setTimeout(()=>{fitCanvas(); drawNet();},50);
+
+  // ---------- muscle bars ----------
+  const barsWrap = document.getElementById('muscleBars');
+  for(let i=0;i<14;i++){
+    const b=document.createElement('i');
+    b.style.height = (30+Math.random()*60)+'%';
+    b.style.animationDelay=(Math.random()*2)+'s';
+    barsWrap.appendChild(b);
+  }
+  setInterval(()=>{
+    [...barsWrap.children].forEach(b=>{ b.style.height=(25+Math.random()*70)+'%'; });
+  },2200);
+
+  // ---------- log ----------
+  function addLog(msg, type='info'){
+    const now = new Date();
+    const t = pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+    const line = document.createElement('div');
+    line.className = 'log-line '+type;
+    line.innerHTML = '<span class="t">['+t+']</span><span class="m">'+msg+'</span>';
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  clearLogBtn.addEventListener('click', ()=>{
+    logEl.innerHTML=''; logEl.appendChild(clearLogBtn);
+    addLog('Nhật ký đã được xoá.', 'info');
+  });
+
+  // ---------- pose engine ----------
+  const POSE_DURATION = {
+    walkf:1800, walkb:1800, spin:1100, flip:1000, jump:750, wave:2200, raise:600, sit:500, stand:500
+  };
+  const LABELS = {
+    walkf:'Tiến về phía trước', walkb:'Lùi về phía sau', spin:'Xoay 360°', flip:'Nhào lộn',
+    jump:'Nhảy lên', wave:'Vẫy tay chào', raise:'Giơ tay lên', sit:'Ngồi xuống', stand:'Đứng dậy'
+  };
+
+  function runPose(pose){
+    if(locked) { addLog('Hệ thống đang khoá an toàn — chờ giải phóng.', 'warn'); return; }
+    robot.setAttribute('data-pose', pose);
+    modeTxt.textContent = (LABELS[pose] || pose).toUpperCase();
+    modeTxt.classList.add('testing'); modeTxt.classList.remove('stopped');
+    sysState.textContent = 'RUNNING';
+    mStatus.textContent = 'TESTING'; mStatus.className='v status-run';
+    addLog('LỆNH THỰC THI → '+(LABELS[pose]||pose), 'action');
+    epoch++; mEpoch.textContent = epoch;
+
+    const dur = POSE_DURATION[pose] || 1000;
+    if(pose==='sit' || pose==='stand'){
+      setTimeout(()=>{
+        sysState.textContent='READY'; mStatus.textContent='READY'; mStatus.className='v status-idle';
+        modeTxt.textContent = pose==='sit' ? 'ĐANG NGỒI' : 'CHỜ LỆNH';
+      }, dur);
+      return;
+    }
+    setTimeout(()=>{
+      robot.setAttribute('data-pose','idle');
+      sysState.textContent='READY'; mStatus.textContent='READY'; mStatus.className='v status-idle';
+      modeTxt.textContent='CHỜ LỆNH'; modeTxt.classList.remove('testing');
+      addLog('Hoàn tất — trở về trạng thái chờ.', 'info');
+    }, dur);
+  }
+
+  qbtns.forEach(btn=>{
+    btn.addEventListener('click', ()=> runPose(btn.dataset.pose));
+  });
+
+  // ---------- free-text command parsing ----------
+  const KEYWORDS = [
+    [/tiến|đi tới|forward/i,'walkf'],
+    [/lùi|đi lùi|backward/i,'walkb'],
+    [/quay|xoay|spin/i,'spin'],
+    [/nhào lộn|lộn|flip/i,'flip'],
+    [/nhảy|jump/i,'jump'],
+    [/vẫy|chào|wave/i,'wave'],
+    [/ngồi|sit/i,'sit'],
+    [/đứng|stand/i,'stand'],
+    [/giơ tay|raise/i,'raise'],
+  ];
+  function parseCommand(text){
+    for(const [re,pose] of KEYWORDS){
+      if(re.test(text)) return pose;
+    }
+    return null;
+  }
+  function submitCommand(){
+    const text = cmdInput.value.trim();
+    if(!text) return;
+    addLog('LỆNH NHẬP: "'+text+'"', 'info');
+    const pose = parseCommand(text);
+    if(pose){ runPose(pose); }
+    else { addLog('Không nhận diện được lệnh — thử: vẫy tay, tiến, nhảy, ngồi…', 'warn'); }
+    cmdInput.value='';
+  }
+  sendBtn.addEventListener('click', submitCommand);
+  cmdInput.addEventListener('keydown', e=>{ if(e.key==='Enter') submitCommand(); });
+
+  // ---------- emergency stop ----------
+  estopBtn.addEventListener('click', ()=>{
+    robot.setAttribute('data-pose','estop');
+    modeTxt.textContent='DỪNG KHẨN CẤP'; modeTxt.classList.add('stopped'); modeTxt.classList.remove('testing');
+    sysState.textContent='HALT';
+    mStatus.textContent='HALTED'; mStatus.className='v status-idle';
+    flashOverlay.classList.add('active');
+    addLog('⚠ DỪNG KHẨN CẤP ĐƯỢC KÍCH HOẠT', 'error');
+    locked = true;
+    qbtns.forEach(b=>b.disabled=true);
+    estopBtn.disabled = true;
+    setTimeout(()=>{
+      flashOverlay.classList.remove('active');
+      robot.setAttribute('data-pose','idle');
+      modeTxt.textContent='CHỜ LỆNH'; modeTxt.classList.remove('stopped');
+      sysState.textContent='READY';
+      mStatus.textContent='READY';
+      locked=false;
+      qbtns.forEach(b=>b.disabled=false);
+      estopBtn.disabled=false;
+      addLog('Hệ thống đã khởi động lại — sẵn sàng nhận lệnh.', 'info');
+    }, 2600);
+  });
+
+  // ---------- voice (Web Speech API, optional) ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(SR){
+    const rec = new SR();
+    rec.lang='vi-VN'; rec.continuous=false; rec.interimResults=false;
+    let listening=false;
+    micBtn.addEventListener('click', ()=>{
+      if(listening){ rec.stop(); return; }
+      try{ rec.start(); listening=true; micBtn.classList.add('listening'); addLog('Đang lắng nghe giọng nói…','info'); }
+      catch(e){}
+    });
+    rec.onresult = (e)=>{
+      const text = e.results[0][0].transcript;
+      cmdInput.value = text;
+      submitCommand();
+    };
+    rec.onend = ()=>{ listening=false; micBtn.classList.remove('listening'); };
+    rec.onerror = ()=>{ listening=false; micBtn.classList.remove('listening'); addLog('Không nhận diện được giọng nói.','warn'); };
+  } else {
+    micBtn.addEventListener('click', ()=>{
+      addLog('Trình duyệt này không hỗ trợ nhận diện giọng nói.', 'warn');
+    });
+  }
+
+  // ---------- boot sequence ----------
+  addLog('Khởi tạo ARC‑9 Test Console…', 'info');
+  setTimeout(()=>addLog('Kết nối mô-đun cảm biến — OK', 'info'), 400);
+  setTimeout(()=>addLog('Nạp mô hình TITAN‑NX — OK', 'info'), 900);
+  setTimeout(()=>addLog('Hệ thống sẵn sàng nhận lệnh test.', 'action'), 1400);
+})();
+</script>
+</body>
+</html>
