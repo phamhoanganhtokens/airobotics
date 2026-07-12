@@ -1,272 +1,241 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phòng Điều Khiển Robot - Voice & Typing</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #111; color: #0f0; }
-        #container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        #ui {
-            position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; width: 320px;
-            border: 1px solid #0f0;
-        }
-        #log { 
-            height: 200px; overflow-y: auto; background: #000; padding: 10px; margin-top: 10px; font-size: 14px; 
-        }
-        input, button {
-            padding: 10px; margin: 5px 0; width: 100%; background: #222; color: #0f0; border: 1px solid #0f0; border-radius: 4px;
-        }
-        button { cursor: pointer; }
-        button:hover { background: #0f0; color: #000; }
-        #mic { font-size: 24px; }
-        .title { font-size: 20px; margin-bottom: 10px; text-align: center; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phòng điều khiển robot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  
+  <!-- Three.js + GLTFLoader -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.min.js"></script>
+
+  <style>
+    body { background: #050505; font-family: system-ui; }
+    .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); }
+    .holo-frame { box-shadow: 0 0 60px rgba(34, 211, 238, 0.6); }
+    #hologram { width: 100%; height: 560px; border-radius: 24px; overflow: hidden; }
+  </style>
 </head>
-<body>
-    <div id="container"></div>
-    
-    <div id="ui">
-        <div class="title">🚀 PHÒNG ĐIỀU KHIỂN ROBOT</div>
-        <input type="text" id="commandInput" placeholder="Nhập lệnh (ví dụ: đi tới, nhảy, nhào lộn)...">
-        <button onclick="sendCommand()">Gửi Lệnh</button>
-        <button id="mic" onclick="startVoice()">🎤 Nói Lệnh</button>
-        
-        <div style="margin-top:15px;">
-            <strong>Trạng thái Robot:</strong><br>
-            <span id="status">Sẵn sàng</span>
+<body class="min-h-screen text-cyan-300">
+  <div class="max-w-7xl mx-auto p-6">
+    <h1 class="text-5xl font-bold text-center mb-8 tracking-widest text-cyan-400">
+      RX-07 • CLAUDE GLTF CONTROL
+    </h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- 3D GLTF Hologram -->
+      <div class="lg:col-span-7 glass rounded-3xl p-4 holo-frame">
+        <div id="hologram"></div>
+        <div class="text-center text-xs mt-2 opacity-70">
+          GLTF Model • Kéo chuột xoay • Cuộn chuột zoom
         </div>
-        
-        <div id="log">Log:<br></div>
+      </div>
+
+      <!-- Control Panel -->
+      <div class="lg:col-span-5 space-y-6">
+        <div class="glass rounded-3xl p-6">
+          <h3 class="text-xl font-bold mb-4">SYSTEM STATUS</h3>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>Battery: <span id="battery" class="text-emerald-400 font-mono">97%</span></div>
+            <div>Temp: <span id="temp" class="text-emerald-400 font-mono">36.3°C</span></div>
+            <div>Mode: <span class="text-cyan-400">ACTIVE</span></div>
+            <div>Stability: <span class="text-emerald-400">99.7%</span></div>
+          </div>
+        </div>
+
+        <div class="glass rounded-3xl p-6">
+          <button onclick="startVoice()" 
+                  class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-6 rounded-2xl text-xl font-semibold flex items-center justify-center gap-3">
+            <i class="fa-solid fa-microphone fa-xl"></i> NÓI LỆNH
+          </button>
+
+          <input type="text" id="cmdInput" placeholder="Nhập lệnh (tiến, nhảy, vẫy tay...)" 
+                 class="mt-4 w-full bg-zinc-900 border border-cyan-500/50 rounded-2xl px-6 py-4 text-lg"
+                 onkeypress="if(event.key==='Enter') executeCommand()">
+        </div>
+
+        <div class="glass rounded-3xl p-6">
+          <h3 class="font-bold mb-4">QUICK COMMANDS</h3>
+          <div class="grid grid-cols-3 gap-3">
+            <button onclick="executeCommand('tiến')" class="quick-btn">➡️ Tiến</button>
+            <button onclick="executeCommand('lùi')" class="quick-btn">⬅️ Lùi</button>
+            <button onclick="executeCommand('nhảy')" class="quick-btn">⤴ Nhảy</button>
+            <button onclick="executeCommand('vẫy tay')" class="quick-btn">👋 Vẫy</button>
+            <button onclick="executeCommand('quay')" class="quick-btn">🔄 Quay</button>
+            <button onclick="executeCommand('dance')" class="quick-btn">🕺 Dance</button>
+          </div>
+          <button onclick="emergencyStop()" class="mt-6 w-full bg-red-600 hover:bg-red-700 py-4 rounded-2xl text-lg font-bold">
+            ⏹ DỪNG KHẨN CẤP
+          </button>
+        </div>
+      </div>
     </div>
 
-    <script>
-        // === THREE.JS SETUP ===
-        let scene, camera, renderer, controls;
-        let robot = {};
-        let isJumping = false;
+    <!-- Log -->
+    <div class="mt-6 glass rounded-3xl p-6">
+      <div class="flex justify-between mb-3">
+        <h3 class="font-bold">COMMAND LOG</h3>
+        <button onclick="clearLog()" class="text-red-400 text-sm">XÓA</button>
+      </div>
+      <div id="log" class="h-64 overflow-y-auto font-mono text-sm space-y-1"></div>
+    </div>
+  </div>
 
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x112233);
-            scene.fog = new THREE.Fog(0x112233, 10, 50);
+  <script>
+    let scene, camera, renderer, robot, mixer;
+    let animations = {};
 
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 5, 12);
+    function initThree() {
+      const container = document.getElementById('hologram');
+      
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(50, container.clientWidth / 560, 0.1, 1000);
+      camera.position.set(0, 1.5, 5);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            document.getElementById('container').appendChild(renderer.domElement);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(container.clientWidth, 560);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer.domElement);
 
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.target.set(0, 3, 0);
+      // Lights
+      scene.add(new THREE.AmbientLight(0xaaaaaa, 0.8));
+      const hemiLight = new THREE.HemisphereLight(0x00ffff, 0x112233, 1.2);
+      scene.add(hemiLight);
 
-            // Lights
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambient);
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(10, 20, 10);
-            dirLight.castShadow = true;
-            scene.add(dirLight);
+      // Load GLTF Robot
+      const loader = new THREE.GLTFLoader();
+      loader.load(
+        'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
+        (gltf) => {
+          robot = gltf.scene;
+          robot.scale.set(1.8, 1.8, 1.8);
+          robot.position.y = -1.2;
+          scene.add(robot);
 
-            // Floor (phòng điều khiển)
-            const floorGeo = new THREE.PlaneGeometry(30, 30);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x334455 });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            floor.receiveShadow = true;
-            scene.add(floor);
-
-            // Tạo Robot Humanoid đơn giản (có khớp)
-            createRobot();
-
-            window.addEventListener('resize', onWindowResize);
-            animate();
+          // Animation Mixer
+          mixer = new THREE.AnimationMixer(robot);
+          gltf.animations.forEach((clip) => {
+            animations[clip.name] = clip;
+          });
+          log("✅ GLTF Robot loaded successfully!", "text-emerald-400");
+        },
+        undefined,
+        (error) => {
+          console.error(error);
+          log("⚠️ Không tải được mô hình GLTF", "text-red-400");
         }
+      );
 
-        function createRobot() {
-            robot.group = new THREE.Group();
-            scene.add(robot.group);
+      function animate() {
+        requestAnimationFrame(animate);
+        if (mixer) mixer.update(0.016);
+        if (robot) robot.rotation.y += 0.0015; // Slow idle rotation
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
 
-            // Torso
-            const torsoGeo = new THREE.BoxGeometry(2, 3, 1);
-            const material = new THREE.MeshStandardMaterial({ color: 0x00aaff, metalness: 0.6 });
-            robot.torso = new THREE.Mesh(torsoGeo, material);
-            robot.torso.position.y = 4;
-            robot.torso.castShadow = true;
-            robot.group.add(robot.torso);
+    // Mouse controls
+    let isDragging = false, prevX = 0;
+    function addMouseControls() {
+      const container = document.getElementById('hologram');
+      container.addEventListener('mousedown', e => { isDragging = true; prevX = e.clientX; });
+      window.addEventListener('mouseup', () => isDragging = false);
+      window.addEventListener('mousemove', e => {
+        if (!isDragging || !robot) return;
+        robot.rotation.y += (e.clientX - prevX) * 0.005;
+        prevX = e.clientX;
+      });
+      container.addEventListener('wheel', e => {
+        if (!camera) return;
+        camera.position.z += e.deltaY * 0.015;
+        camera.position.z = Math.max(2, Math.min(10, camera.position.z));
+      });
+    }
 
-            // Head
-            const headGeo = new THREE.SphereGeometry(1.2, 32, 32);
-            robot.head = new THREE.Mesh(headGeo, material);
-            robot.head.position.y = 6.5;
-            robot.group.add(robot.head);
+    // Command Logic
+    function log(msg, color = "text-cyan-300") {
+      const el = document.getElementById('log');
+      const time = new Date().toLocaleTimeString('vi-VN');
+      el.innerHTML += `<div class="${color}">[${time}] ${msg}</div>`;
+      el.scrollTop = el.scrollHeight;
+    }
 
-            // Arms
-            robot.leftArm = createLimb(0.6, 2.5, -2, 4, Math.PI / 4);
-            robot.rightArm = createLimb(0.6, 2.5, 2, 4, -Math.PI / 4);
+    function playAnimation(name, duration = 1500) {
+      if (!mixer || !animations[name]) return;
+      const action = mixer.clipAction(animations[name]);
+      action.reset().play();
+      setTimeout(() => action.stop(), duration);
+    }
 
-            // Legs
-            robot.leftLeg = createLimb(0.7, 3, -0.8, 2, 0);
-            robot.rightLeg = createLimb(0.7, 3, 0.8, 2, 0);
+    function executeCommand(cmd = null) {
+      const input = document.getElementById('cmdInput');
+      const text = (cmd || input.value || "").toLowerCase().trim();
+      if (!text) return;
 
-            robot.group.position.y = 0.1;
-        }
+      log(`📡 LỆNH: ${text}`, "text-emerald-400");
 
-        function createLimb(radius, height, x, y, rot) {
-            const geo = new THREE.CylinderGeometry(radius, radius, height, 32);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x00aaff, metalness: 0.6 });
-            const limb = new THREE.Mesh(geo, mat);
-            limb.position.set(x, y, 0);
-            limb.rotation.z = rot;
-            limb.castShadow = true;
-            robot.group.add(limb);
-            return limb;
-        }
+      if (text.includes("nhảy") || text.includes("jump")) {
+        log("⤴ Robot nhảy", "text-cyan-400");
+        if (robot) robot.position.y = 1.5;
+        setTimeout(() => { if(robot) robot.position.y = -1.2; }, 800);
+        playAnimation("Jump", 1000);
+      } 
+      else if (text.includes("vẫy") || text.includes("wave")) {
+        log("👋 Robot vẫy tay", "text-cyan-400");
+        playAnimation("Wave", 1200);
+      } 
+      else if (text.includes("dance")) {
+        log("🕺 Robot nhảy múa", "text-cyan-400");
+        playAnimation("Dance", 3000);
+      } 
+      else if (text.includes("tiến") || text.includes("walk")) {
+        log("🚶 Robot tiến tới", "text-cyan-400");
+        if (robot) robot.position.z = -1;
+        setTimeout(() => { if(robot) robot.position.z = 0; }, 1000);
+      } 
+      else if (text.includes("quay") || text.includes("spin")) {
+        log("🔄 Robot quay", "text-cyan-400");
+        if (robot) robot.rotation.y += Math.PI * 2;
+      } 
+      else {
+        log("⚠️ Lệnh chưa được hỗ trợ", "text-amber-400");
+      }
 
-        // === ANIMATION FUNCTIONS ===
-        function walkForward() {
-            log("🤖 Robot đang đi tới...");
-            robot.group.position.z -= 0.5;
-            animateLegs();
-        }
+      if (!cmd) input.value = '';
+    }
 
-        function walkBackward() {
-            log("🤖 Robot đang đi lui...");
-            robot.group.position.z += 0.5;
-            animateLegs();
-        }
+    function startVoice() {
+      const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Speech) return alert("Voice không hỗ trợ");
+      const rec = new Speech();
+      rec.lang = 'vi-VN';
+      rec.onresult = e => {
+        const text = e.results[0][0].transcript;
+        log(`🎤 ${text}`);
+        executeCommand(text);
+      };
+      rec.start();
+    }
 
-        function jump() {
-            if (isJumping) return;
-            isJumping = true;
-            log("🤖 Robot nhảy!");
+    function emergencyStop() {
+      log("⛔ DỪNG KHẨN CẤP!", "text-red-500");
+      if (mixer) mixer.stopAllAction();
+      alert("🚨 ROBOT ĐÃ DỪNG KHẨN CẤP");
+    }
 
-            let height = 0;
-            const jumpInterval = setInterval(() => {
-                height += 0.4;
-                robot.group.position.y = 0.1 + Math.sin(height) * 4;
-                if (height > Math.PI) {
-                    clearInterval(jumpInterval);
-                    robot.group.position.y = 0.1;
-                    isJumping = false;
-                }
-            }, 30);
-        }
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+    }
 
-        function somersault() {
-            log("🤖 Robot nhào lộn!");
-            let rot = 0;
-            const interval = setInterval(() => {
-                rot += 0.2;
-                robot.group.rotation.x = rot;
-                if (rot > Math.PI * 2) {
-                    clearInterval(interval);
-                    robot.group.rotation.x = 0;
-                }
-            }, 20);
-        }
-
-        function animateLegs() {
-            // Animation đơn giản cho chân
-            robot.leftLeg.rotation.z = Math.sin(Date.now() / 100) * 0.5;
-            robot.rightLeg.rotation.z = -Math.sin(Date.now() / 100) * 0.5;
-            setTimeout(() => {
-                robot.leftLeg.rotation.z = 0;
-                robot.rightLeg.rotation.z = 0;
-            }, 600);
-        }
-
-        function wave() {
-            log("🤖 Robot vẫy tay!");
-            let angle = 0;
-            const interval = setInterval(() => {
-                angle += 0.3;
-                robot.leftArm.rotation.z = Math.sin(angle) * 1.5;
-                if (angle > Math.PI * 3) {
-                    clearInterval(interval);
-                    robot.leftArm.rotation.z = Math.PI / 4;
-                }
-            }, 30);
-        }
-
-        // === COMMAND SYSTEM ===
-        function sendCommand() {
-            const input = document.getElementById('commandInput');
-            processCommand(input.value.trim().toLowerCase());
-            input.value = '';
-        }
-
-        function processCommand(cmd) {
-            if (!cmd) return;
-            log(`📝 Lệnh: ${cmd}`);
-
-            if (cmd.includes("đi tới") || cmd.includes("forward") || cmd.includes("tiến")) {
-                walkForward();
-            } else if (cmd.includes("đi lui") || cmd.includes("back")) {
-                walkBackward();
-            } else if (cmd.includes("nhảy") || cmd.includes("jump")) {
-                jump();
-            } else if (cmd.includes("nhào lộn") || cmd.includes("somersault") || cmd.includes("flip")) {
-                somersault();
-            } else if (cmd.includes("vẫy tay") || cmd.includes("wave")) {
-                wave();
-            } else if (cmd.includes("dance") || cmd.includes("vận động")) {
-                log("🤖 Robot nhảy múa!");
-                somersault();
-                setTimeout(wave, 800);
-            } else {
-                log("❓ Không hiểu lệnh. Thử: đi tới, nhảy, nhào lộn...");
-            }
-        }
-
-        // === VOICE RECOGNITION ===
-        let recognition;
-        function startVoice() {
-            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-                alert("Trình duyệt không hỗ trợ nhận diện giọng nói!");
-                return;
-            }
-
-            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'vi-VN';
-            recognition.interimResults = false;
-
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                document.getElementById('commandInput').value = transcript;
-                processCommand(transcript.toLowerCase());
-            };
-
-            recognition.onerror = (e) => log("❌ Lỗi voice: " + e.error);
-            recognition.start();
-            log("🎤 Đang nghe...");
-        }
-
-        function log(text) {
-            const logDiv = document.getElementById('log');
-            logDiv.innerHTML += text + "<br>";
-            logDiv.scrollTop = logDiv.scrollHeight;
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-
-        // Khởi chạy
-        window.onload = init;
-    </script>
+    // Init
+    window.onload = () => {
+      initThree();
+      addMouseControls();
+      log("🌌 RX-07 CLAUDE GLTF HOLOGRAM READY", "text-emerald-400");
+    };
+  </script>
 </body>
 </html>
