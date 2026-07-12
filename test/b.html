@@ -1,684 +1,692 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RX-07 Robot Testing Control Center</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@r128/examples/js/loaders/GLTFLoader.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Robot Testing Control Center</title>
+<style>
+  :root{
+    --bg:#0a0e27;
+    --card:#111633;
+    --card-border:#1c2450;
+    --primary:#00d9ff;
+    --secondary:#0080ff;
+    --accent:#a855f7;
+    --muted:#64748b;
+    --green:#10b981;
+    --yellow:#eab308;
+    --red:#ef4444;
+    --text:#e2e8f0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+  @font-face{ }
+  .mono{ font-family:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace; }
 
-        body {
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
-            color: #e0e0e0;
-            overflow: hidden;
-            height: 100vh;
-        }
+  /* background grid */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,217,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,217,255,0.05) 1px, transparent 1px);
+    background-size:40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
 
-        .container {
-            display: grid;
-            grid-template-columns: 250px 1fr 300px;
-            gap: 16px;
-            padding: 16px;
-            height: 100vh;
-            overflow: hidden;
-        }
+  .neon-border{
+    border:1px solid var(--card-border);
+    box-shadow:0 0 0 1px rgba(0,217,255,0.05), 0 0 20px rgba(0,217,255,0.06);
+    transition:box-shadow .25s ease, border-color .25s ease;
+  }
+  .neon-border:hover{
+    border-color:rgba(0,217,255,0.5);
+    box-shadow:0 0 0 1px rgba(0,217,255,0.15), 0 0 30px rgba(0,217,255,0.18);
+  }
+  .card{
+    background:var(--card);
+    border-radius:10px;
+    padding:16px;
+  }
+  .panel-title{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    font-size:13px;
+    color:var(--primary);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:0 0 12px 0;
+    letter-spacing:.03em;
+  }
+  .panel-title svg{width:15px;height:15px;flex-shrink:0;}
 
-        /* Header */
-        .header {
-            grid-column: 1 / -1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            background: rgba(0, 217, 255, 0.05);
-            border: 1px solid rgba(0, 217, 255, 0.3);
-            border-radius: 8px;
-            margin-bottom: 12px;
-            box-shadow: 0 0 20px rgba(0, 217, 255, 0.1);
-        }
+  /* ===== HEADER ===== */
+  header{
+    position:relative; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px;
+    border-bottom:1px solid var(--card-border);
+    background:rgba(10,14,39,0.85);
+    backdrop-filter:blur(6px);
+    flex-wrap:wrap; gap:10px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-icon{
+    width:34px;height:34px;
+    border-radius:8px;
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 18px rgba(0,217,255,.5);
+  }
+  .brand-title{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:16px; letter-spacing:.04em; }
+  .brand-sub{ font-size:11px; color:var(--muted); }
+  .header-right{ display:flex; align-items:center; gap:18px; font-family:'JetBrains Mono',monospace; font-size:12px; }
+  .status-pill{
+    display:flex; align-items:center; gap:6px;
+    padding:5px 12px; border-radius:999px;
+    border:1px solid rgba(16,185,129,.4);
+    background:rgba(16,185,129,.08);
+    color:var(--green);
+  }
+  .status-dot{ width:7px;height:7px;border-radius:50%; background:var(--green); animation:pulse 1.6s ease-in-out infinite; }
+  #clock{ color:var(--text); min-width:78px; text-align:right; }
 
-        .header-title {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #00d9ff;
-            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
-        }
+  /* ===== LAYOUT ===== */
+  .layout{
+    position:relative; z-index:1;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:16px;
+    padding:16px;
+  }
+  @media(min-width:1024px){
+    .layout{ grid-template-columns: 1fr 2fr 2fr; align-items:start; }
+  }
+  .col{ display:flex; flex-direction:column; gap:16px; }
 
-        .header-status {
-            display: flex;
-            gap: 16px;
-            font-size: 12px;
-        }
+  /* ===== BUTTONS ===== */
+  .btn-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  button.action{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px; font-weight:700;
+    color:#fff; border:none; border-radius:6px;
+    padding:9px 10px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    letter-spacing:.03em;
+  }
+  button.action:hover{ transform:scale(1.04); filter:brightness(1.1); }
+  button.action:active{ transform:scale(.95); }
+  .btn-start{ background:#16a34a; } .btn-start:hover{ box-shadow:0 0 16px rgba(22,163,74,.5);}
+  .btn-stop{ background:#dc2626; } .btn-stop:hover{ box-shadow:0 0 16px rgba(220,38,38,.5);}
+  .btn-reset{ background:#2563eb; } .btn-reset:hover{ box-shadow:0 0 16px rgba(37,99,235,.5);}
+  .btn-config{ background:#9333ea; } .btn-config:hover{ box-shadow:0 0 16px rgba(147,51,234,.5);}
 
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+  .quick-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .quick-btn{
+    background:#1e2749; color:#fff; border:1px solid #2a3466;
+    border-radius:6px; padding:10px 6px;
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600;
+    cursor:pointer; text-align:center;
+    transition:all .15s ease;
+  }
+  .quick-btn:hover{ border-color:var(--primary); box-shadow:0 0 14px rgba(0,217,255,.3); transform:scale(1.04); }
+  .quick-btn:active{ transform:scale(.95); }
+  .quick-emoji{ display:block; font-size:17px; margin-bottom:3px; }
 
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #00ff00;
-            box-shadow: 0 0 10px #00ff00;
-        }
+  .status-rows{ font-family:'JetBrains Mono',monospace; font-size:12px; }
+  .status-row{ display:flex; justify-content:space-between; padding:4px 0; }
+  .status-row .label{ color:var(--muted); }
+  .status-row .ok{ color:var(--green); }
+  .status-row .ready{ color:var(--primary); animation:pulse 1.6s ease-in-out infinite; }
 
-        .header-time {
-            font-size: 14px;
-            color: #00d9ff;
-            font-weight: bold;
-        }
+  /* ===== ROBOT DISPLAY ===== */
+  .robot-display{
+    position:relative;
+    min-height:340px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .robot-display::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(#00d9ff 1px, transparent 1px),
+      linear-gradient(90deg,#00d9ff 1px, transparent 1px);
+    background-size:22px 22px;
+    opacity:.06;
+  }
+  .ring{
+    position:absolute; border-radius:50%;
+    border:1px solid var(--primary);
+  }
+  .ring1{ width:180px;height:180px; opacity:.3; animation:pulse 2.4s ease-in-out infinite; }
+  .ring2{ width:230px;height:230px; opacity:.18; animation:spin 20s linear infinite; }
+  .ring3{ width:280px;height:280px; border-color:var(--accent); opacity:.15; animation:spin 30s linear infinite reverse; }
+  .platform-glow{
+    position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
+    width:200px; height:8px; border-radius:50%;
+    background:linear-gradient(90deg, transparent, var(--primary), transparent);
+    filter:blur(10px); opacity:.6;
+  }
+  .robot-svg-wrap{
+    position:relative; z-index:2;
+    animation:floaty 4s ease-in-out infinite;
+    filter:drop-shadow(0 0 18px rgba(0,217,255,.55)) drop-shadow(0 0 34px rgba(0,128,255,.3));
+  }
+  .badge-tl{ position:absolute; top:14px; left:16px; font-size:13px; font-weight:700; color:var(--primary); font-family:'JetBrains Mono',monospace; letter-spacing:.04em; }
+  .badge-tr{
+    position:absolute; top:14px; right:14px;
+    background:rgba(10,14,39,.8); border:1px solid var(--primary); border-radius:6px;
+    padding:6px 10px; font-family:'JetBrains Mono',monospace; font-size:11px; text-align:right;
+    backdrop-filter:blur(4px);
+  }
+  .badge-tr .id{ color:var(--primary); font-weight:700; }
+  .badge-tr .st{ color:var(--muted); font-size:10px; }
 
-        /* Left Panel */
-        .left-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            overflow-y: auto;
-        }
+  /* ===== METERS ===== */
+  .meter{ margin-bottom:10px; }
+  .meter-row{ display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px; }
+  .meter-row .lbl{ color:var(--muted); }
+  .meter-row .val{ font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--primary); }
+  .meter-track{ width:100%; height:8px; background:#1e2749; border:1px solid #2a3466; border-radius:99px; overflow:hidden; }
+  .meter-fill{ height:100%; border-radius:99px; transition:width .5s ease; background:linear-gradient(90deg,var(--primary),var(--secondary)); }
 
-        /* Center Panel */
-        .center-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            overflow-y: auto;
-        }
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; font-family:'JetBrains Mono',monospace; font-size:11.5px; margin-top:10px; }
+  .stat-box{ background:rgba(0,0,0,.2); border:1px solid #263061; border-radius:6px; padding:8px; }
+  .stat-box .k{ color:var(--muted); font-size:10.5px; }
+  .stat-box .v{ color:var(--primary); font-weight:700; }
 
-        /* Right Panel */
-        .right-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            overflow-y: auto;
-        }
+  .activity-bars{ display:flex; gap:4px; margin-top:8px; }
+  .activity-bar{ flex:1; height:24px; border-radius:3px; border:1px solid #2a3466; background:#1e2749; overflow:hidden; position:relative;}
+  .activity-bar span{ position:absolute; inset:0; animation:flicker 2s ease-in-out infinite; }
 
-        /* Card Styles */
-        .card {
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(0, 217, 255, 0.3);
-            border-radius: 8px;
-            padding: 16px;
-            box-shadow: 0 0 20px rgba(0, 217, 255, 0.1);
-            backdrop-filter: blur(10px);
-        }
+  .status-live{ margin-top:10px; display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--green); }
+  .dot-live{ width:6px;height:6px;border-radius:50%; background:var(--green); animation:pulse 1.4s ease-in-out infinite; }
 
-        .card-title {
-            font-size: 13px;
-            font-weight: bold;
-            color: #00d9ff;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+  .muscle-row{ display:flex; align-items:center; gap:8px; font-size:11.5px; margin-bottom:6px; }
+  .muscle-row .mname{ width:42px; color:var(--muted); }
+  .muscle-track{ flex:1; height:6px; background:#1e2749; border:1px solid #2a3466; border-radius:99px; overflow:hidden; }
+  .muscle-fill{ height:100%; background:linear-gradient(90deg,var(--primary),var(--secondary)); }
+  .muscle-row .mval{ width:34px; text-align:right; color:var(--primary); font-family:'JetBrains Mono',monospace; }
 
-        /* Control Panel */
-        .control-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
+  .metric-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11px; margin-top:10px; }
+  .metric-box{ background:rgba(0,0,0,.2); border:1px solid #263061; border-radius:6px; padding:8px; text-align:center; }
+  .metric-box .k{ color:var(--muted); font-size:10px; }
+  .metric-box .v{ font-weight:700; }
 
-        .btn {
-            padding: 10px 12px;
-            border: none;
-            border-radius: 6px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+  .detail-rows{ font-family:'JetBrains Mono',monospace; font-size:11.5px; margin-top:8px; }
+  .detail-rows .r{ display:flex; justify-content:space-between; padding:3px 0; }
+  .detail-rows .lbl{ color:var(--muted); }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #00d9ff 0%, #0080ff 100%);
-            color: #000;
-            box-shadow: 0 0 15px rgba(0, 217, 255, 0.5);
-        }
+  /* ===== CHART ===== */
+  .chart-legend{ display:flex; gap:16px; margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+  .chart-legend .item{ display:flex; align-items:center; gap:6px; }
+  .legend-dot{ width:8px;height:8px;border-radius:50%; }
 
-        .btn-primary:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 25px rgba(0, 217, 255, 0.8);
-        }
+  /* ===== COMMAND LOG ===== */
+  .log-box{
+    height:180px; overflow-y:auto;
+    background:rgba(0,0,0,.25); border:1px solid #263061; border-radius:6px;
+    padding:10px; font-family:'JetBrains Mono',monospace; font-size:11.5px;
+  }
+  .log-line{ display:flex; gap:8px; padding:1px 0; }
+  .log-time{ color:var(--muted); flex-shrink:0; }
+  .log-sys{ color:var(--muted); }
+  .log-cmd{ color:var(--primary); }
+  .log-ok{ color:var(--green); }
+  .log-warn{ color:var(--yellow); }
+  .scanline{ height:1px; margin-top:10px; background:linear-gradient(90deg,transparent,var(--primary),transparent); opacity:.25; }
 
-        .btn-success {
-            background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
-            color: #000;
-            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
-        }
+  /* ===== animations ===== */
+  @keyframes pulse{ 0%,100%{opacity:.45;} 50%{opacity:1;} }
+  @keyframes spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+  @keyframes floaty{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-8px);} }
+  @keyframes flicker{ 0%,100%{opacity:.4;} 50%{opacity:1;} }
 
-        .btn-danger {
-            background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
-            color: #fff;
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
-        }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background:#263061; border-radius:99px; }
 
-        .btn-warning {
-            background: linear-gradient(135deg, #ff9900 0%, #ff6600 100%);
-            color: #000;
-            box-shadow: 0 0 15px rgba(255, 153, 0, 0.5);
-        }
-
-        /* Quick Actions */
-        .quick-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        .action-btn {
-            padding: 12px;
-            background: rgba(0, 128, 255, 0.1);
-            border: 1px solid rgba(0, 128, 255, 0.3);
-            border-radius: 6px;
-            color: #00d9ff;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 10px;
-            text-align: center;
-        }
-
-        .action-btn:hover {
-            background: rgba(0, 128, 255, 0.3);
-            box-shadow: 0 0 15px rgba(0, 128, 255, 0.5);
-            transform: translateY(-2px);
-        }
-
-        /* 3D Viewer */
-        #canvas-container {
-            width: 100%;
-            height: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        #canvas {
-            width: 100%;
-            height: 100%;
-        }
-
-        .canvas-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .canvas-instructions {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            background: rgba(10, 14, 39, 0.8);
-            border: 1px solid rgba(0, 217, 255, 0.3);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 11px;
-            color: #00d9ff;
-        }
-
-        .canvas-status {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(10, 14, 39, 0.8);
-            border: 1px solid rgba(0, 217, 255, 0.3);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 11px;
-            color: #00d9ff;
-        }
-
-        /* Data Display */
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(0, 217, 255, 0.1);
-            font-size: 12px;
-        }
-
-        .data-row:last-child {
-            border-bottom: none;
-        }
-
-        .data-label {
-            color: #a0a0a0;
-        }
-
-        .data-value {
-            color: #00d9ff;
-            font-weight: bold;
-        }
-
-        /* Progress Bar */
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: rgba(0, 217, 255, 0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 4px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #00d9ff 0%, #0080ff 100%);
-            border-radius: 3px;
-            box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
-            transition: width 0.3s ease;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 217, 255, 0.05);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(0, 217, 255, 0.3);
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(0, 217, 255, 0.5);
-        }
-
-        /* Animations */
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 10px rgba(0, 217, 255, 0.3); }
-            50% { box-shadow: 0 0 20px rgba(0, 217, 255, 0.6); }
-        }
-
-        .glow {
-            animation: glow 2s infinite;
-        }
-    </style>
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header" style="grid-column: 1 / -1;">
-            <div class="header-title">
-                <span>⚙️</span>
-                <span>RX-07 CONTROL DECK</span>
-                <span style="font-size: 12px; color: #a0a0a0;">Robot Testing Control Center</span>
-            </div>
-            <div class="header-status">
-                <div class="status-item">
-                    <span class="status-indicator"></span>
-                    <span>SYSTEM: ONLINE</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-indicator" style="background: #0080ff; box-shadow: 0 0 10px #0080ff;"></span>
-                    <span>MODE: STANDBY</span>
-                </div>
-            </div>
-            <div class="header-time" id="current-time">10:11:43 UTC+7</div>
-        </div>
 
-        <!-- Left Panel -->
-        <div class="left-panel">
-            <!-- Main Controls -->
-            <div class="card">
-                <div class="card-title">⏯️ MAIN CONTROLS</div>
-                <div class="control-grid">
-                    <button class="btn btn-success">▶ START</button>
-                    <button class="btn btn-danger">⏹ STOP</button>
-                    <button class="btn btn-primary">⟲ RESET</button>
-                    <button class="btn btn-warning">⚙ CONFIG</button>
-                </div>
-            </div>
+<header>
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0a0e27" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="8" width="16" height="12" rx="2"/><circle cx="9" cy="13" r="1.4" fill="#0a0e27"/><circle cx="15" cy="13" r="1.4" fill="#0a0e27"/>
+        <path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><path d="M4 13H2"/><path d="M22 13h-2"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-title">ROBOT TESTING CONTROL CENTER</div>
+      <div class="brand-sub">Real-time Robot Intelligence Command</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="mode" class="mono" style="color:var(--muted)">MODE: <b style="color:var(--secondary)">STANDBY</b></span>
+    <div class="status-pill"><span class="status-dot"></span><span id="sysStatus">ONLINE</span></div>
+    <span id="clock" class="mono"></span>
+  </div>
+</header>
 
-            <!-- Quick Actions -->
-            <div class="card">
-                <div class="card-title">⚡ QUICK ACTIONS</div>
-                <div class="quick-actions">
-                    <div class="action-btn">🚶 Walk</div>
-                    <div class="action-btn">🏃 Run</div>
-                    <div class="action-btn">🦘 Jump</div>
-                    <div class="action-btn">👋 Wave</div>
-                    <div class="action-btn">🙇 Bow</div>
-                    <div class="action-btn">🔄 Spin</div>
-                    <div class="action-btn">🪑 Sit</div>
-                    <div class="action-btn">🧍 Stand</div>
-                </div>
-            </div>
+<div class="layout">
 
-            <!-- System Status -->
-            <div class="card">
-                <div class="card-title">📊 SYSTEM STATUS</div>
-                <div class="data-row">
-                    <span class="data-label">Power:</span>
-                    <span class="data-value">ON</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Battery:</span>
-                    <span class="data-value">98%</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Temp:</span>
-                    <span class="data-value">36°C</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Status:</span>
-                    <span class="data-value">READY</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Center Panel -->
-        <div class="center-panel">
-            <!-- 3D Viewer -->
-            <div class="card" style="flex: 1; display: flex; flex-direction: column;">
-                <div class="card-title">🤖 HUMANOID 3D MODEL</div>
-                <div id="canvas-container" style="flex: 1;">
-                    <canvas id="canvas"></canvas>
-                    <div class="canvas-overlay">
-                        <div class="canvas-instructions">
-                            <div>🖱️ Drag to rotate</div>
-                            <div>🔍 Scroll to zoom</div>
-                        </div>
-                        <div class="canvas-status">
-                            <div>RX-07</div>
-                            <div style="font-size: 10px; color: #a0a0a0;">INTERACTIVE</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Panel -->
-        <div class="right-panel">
-            <!-- Neural Network -->
-            <div class="card">
-                <div class="card-title">🧠 NEURAL NETWORK</div>
-                <div class="data-row">
-                    <span class="data-label">Accuracy</span>
-                    <span class="data-value">92.0%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 92%;"></div>
-                </div>
-                <div class="data-row" style="margin-top: 8px;">
-                    <span class="data-label">Layers</span>
-                    <span class="data-value">8</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Nodes</span>
-                    <span class="data-value">2048</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Activity</span>
-                    <span class="data-value pulse">● Training</span>
-                </div>
-            </div>
-
-            <!-- Muscle Simulation -->
-            <div class="card">
-                <div class="card-title">💪 MUSCLE SIMULATION</div>
-                <div class="data-row">
-                    <span class="data-label">Efficiency</span>
-                    <span class="data-value">87.0%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 87%;"></div>
-                </div>
-                <div class="data-row" style="margin-top: 8px;">
-                    <span class="data-label">Tension</span>
-                    <span class="data-value">65.0%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 65%; background: linear-gradient(90deg, #ff9900 0%, #ff6600 100%);"></div>
-                </div>
-                <div class="data-row" style="margin-top: 8px;">
-                    <span class="data-label">Muscle Groups</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Arms</span>
-                    <span class="data-value">78%</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Legs</span>
-                    <span class="data-value">82%</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Torso</span>
-                    <span class="data-value">88%</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Head</span>
-                    <span class="data-value">91%</span>
-                </div>
-            </div>
-
-            <!-- AI Training -->
-            <div class="card">
-                <div class="card-title">🤖 AI TRAINING METRICS</div>
-                <div class="data-row">
-                    <span class="data-label">Progress</span>
-                    <span class="data-value">67.0%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 67%;"></div>
-                </div>
-                <div class="data-row" style="margin-top: 8px;">
-                    <span class="data-label">Loss</span>
-                    <span class="data-value">0.234</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Accuracy</span>
-                    <span class="data-value">94.2%</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">F1-Score</span>
-                    <span class="data-value">0.912</span>
-                </div>
-                <div class="data-row" style="margin-top: 8px;">
-                    <span class="data-label">Epoch</span>
-                    <span class="data-value">2847</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Learning Rate</span>
-                    <span class="data-value">0.0012</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Dataset</span>
-                    <span class="data-value">HUMANOID_V3</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label">Model</span>
-                    <span class="data-value">TITAN-NX</span>
-                </div>
-            </div>
-        </div>
+  <!-- LEFT: CONTROL PANEL -->
+  <div class="col">
+    <div class="card neon-border">
+      <h2 class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7"/><path d="M12 8v4l3 2"/></svg>
+        MAIN CONTROLS
+      </h2>
+      <div class="btn-grid">
+        <button class="action btn-start" id="btnStart">▶ START</button>
+        <button class="action btn-stop" id="btnStop">■ STOP</button>
+      </div>
+      <div class="btn-grid" style="margin-top:8px;">
+        <button class="action btn-reset" id="btnReset">⚡ RESET</button>
+        <button class="action btn-config" id="btnConfig">⚙ CONFIG</button>
+      </div>
     </div>
 
-    <script>
-        // Update time
-        function updateTime() {
-            const now = new Date();
-            const time = now.toLocaleTimeString('en-US', { 
-                hour12: false, 
-                timeZone: 'Asia/Bangkok' 
-            });
-            document.getElementById('current-time').textContent = time + ' UTC+7';
-        }
-        setInterval(updateTime, 1000);
-        updateTime();
+    <div class="card neon-border">
+      <h2 class="panel-title" style="margin-bottom:10px;">QUICK ACTIONS</h2>
+      <div class="quick-grid" id="quickActions"></div>
+    </div>
 
-        // Three.js Setup
-        const canvas = document.getElementById('canvas');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0e27);
-        scene.fog = new THREE.Fog(0x0a0e27, 50, 100);
+    <div class="card neon-border">
+      <h2 class="panel-title">SYSTEM STATUS</h2>
+      <div class="status-rows">
+        <div class="status-row"><span class="label">Power:</span><span class="ok">ON</span></div>
+        <div class="status-row"><span class="label">Battery:</span><span class="ok" id="battVal">98%</span></div>
+        <div class="status-row"><span class="label">Temp:</span><span class="ok" id="tempVal">36°C</span></div>
+        <div class="status-row"><span class="label">Status:</span><span class="ready">READY</span></div>
+      </div>
+    </div>
+  </div>
 
-        const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
-        camera.position.z = 5;
+  <!-- CENTER: ROBOT + CHART + LOG -->
+  <div class="col">
+    <div class="card neon-border robot-display">
+      <div class="ring ring1"></div>
+      <div class="ring ring2"></div>
+      <div class="ring ring3"></div>
+      <div class="platform-glow"></div>
+      <div class="badge-tl">HUMANOID STATUS</div>
+      <div class="badge-tr"><div class="id">RX-07</div><div class="st">ACTIVE</div></div>
 
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = true;
+      <div class="robot-svg-wrap">
+        <svg width="140" height="190" viewBox="0 0 140 190" fill="none">
+          <!-- head -->
+          <rect x="45" y="8" width="50" height="42" rx="12" fill="#111633" stroke="#00d9ff" stroke-width="2"/>
+          <circle cx="60" cy="28" r="5" fill="#00d9ff"/>
+          <circle cx="80" cy="28" r="5" fill="#00d9ff"/>
+          <rect x="65" y="0" width="10" height="10" rx="2" fill="#0080ff"/>
+          <!-- neck -->
+          <rect x="63" y="50" width="14" height="10" fill="#1e2749"/>
+          <!-- torso -->
+          <rect x="35" y="60" width="70" height="60" rx="10" fill="#111633" stroke="#0080ff" stroke-width="2"/>
+          <circle cx="70" cy="90" r="14" fill="none" stroke="#00d9ff" stroke-width="2"/>
+          <circle cx="70" cy="90" r="5" fill="#00d9ff"/>
+          <!-- arms -->
+          <rect x="14" y="65" width="16" height="55" rx="8" fill="#111633" stroke="#0080ff" stroke-width="2"/>
+          <rect x="110" y="65" width="16" height="55" rx="8" fill="#111633" stroke="#0080ff" stroke-width="2"/>
+          <!-- legs -->
+          <rect x="42" y="122" width="18" height="55" rx="8" fill="#111633" stroke="#0080ff" stroke-width="2"/>
+          <rect x="80" y="122" width="18" height="55" rx="8" fill="#111633" stroke="#0080ff" stroke-width="2"/>
+          <rect x="38" y="177" width="26" height="10" rx="3" fill="#0080ff"/>
+          <rect x="76" y="177" width="26" height="10" rx="3" fill="#0080ff"/>
+        </svg>
+      </div>
+    </div>
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(ambientLight);
+    <div class="card neon-border">
+      <h2 class="panel-title">PERFORMANCE TIMELINE</h2>
+      <canvas id="chart" width="600" height="180" style="width:100%; height:180px; display:block;"></canvas>
+      <div class="chart-legend">
+        <div class="item"><span class="legend-dot" style="background:#00d9ff;"></span>Accuracy</div>
+        <div class="item"><span class="legend-dot" style="background:#0080ff;"></span>Efficiency</div>
+        <div class="item"><span class="legend-dot" style="background:#eab308;"></span>Temp</div>
+      </div>
+    </div>
 
-        const directionalLight = new THREE.DirectionalLight(0x00d9ff, 1);
-        directionalLight.position.set(10, 10, 10);
-        directionalLight.castShadow = true;
-        scene.add(directionalLight);
+    <div class="card neon-border">
+      <h2 class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>
+        COMMAND LOG
+      </h2>
+      <div class="log-box" id="logBox"></div>
+      <div class="scanline"></div>
+    </div>
+  </div>
 
-        const pointLight = new THREE.PointLight(0x0080ff, 0.8);
-        pointLight.position.set(-10, 5, 5);
-        scene.add(pointLight);
+  <!-- RIGHT: NEURAL / MUSCLE / TRAINING -->
+  <div class="col">
+    <div class="card neon-border">
+      <h2 class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v1a3 3 0 0 0-2 5 3 3 0 0 0 2 5v1a4 4 0 0 0 8 0v-1a3 3 0 0 0 2-5 3 3 0 0 0-2-5V6a4 4 0 0 0-4-4z"/></svg>
+        NEURAL NETWORK
+      </h2>
+      <div class="meter">
+        <div class="meter-row"><span class="lbl">Accuracy</span><span class="val" id="nnAcc">92.0%</span></div>
+        <div class="meter-track"><div class="meter-fill" id="nnAccBar" style="width:92%"></div></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="k">Layers</div><div class="v">8</div></div>
+        <div class="stat-box"><div class="k">Nodes</div><div class="v">2048</div></div>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;">Activity</div>
+        <div class="activity-bars" id="activityBars"></div>
+      </div>
+      <div class="status-live"><span class="dot-live"></span>Training Active</div>
+    </div>
 
-        // Load GLTF Model
-        const loader = new THREE.GLTFLoader();
-        let model = null;
-        let isLoading = true;
+    <div class="card neon-border">
+      <h2 class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        MUSCLE SIMULATION
+      </h2>
+      <div class="meter">
+        <div class="meter-row"><span class="lbl">Efficiency</span><span class="val" id="msEff">87.0%</span></div>
+        <div class="meter-track"><div class="meter-fill" id="msEffBar" style="width:87%; background:linear-gradient(90deg,var(--secondary),var(--primary));"></div></div>
+      </div>
+      <div class="meter">
+        <div class="meter-row"><span class="lbl">Tension</span><span class="val" id="msTen" style="color:var(--secondary);">65.0%</span></div>
+        <div class="meter-track"><div class="meter-fill" id="msTenBar" style="width:65%; background:linear-gradient(90deg,#eab308,#f97316);"></div></div>
+      </div>
+      <div style="margin-top:10px;" id="muscleGroups"></div>
+      <div class="status-live"><span class="dot-live"></span>Simulation Running</div>
+    </div>
 
-        loader.load(
-            'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/models/gltf/Xbot.glb',
-            (gltf) => {
-                model = gltf.scene;
-                model.scale.set(1, 1, 1);
-                model.position.set(0, 0, 0);
-                
-                model.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                        if (child.material) {
-                            child.material.emissive.setHex(0x00d9ff);
-                            child.material.emissiveIntensity = 0.1;
-                        }
-                    }
-                });
+    <div class="card neon-border">
+      <h2 class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 6h7v7"/></svg>
+        AI TRAINING METRICS
+      </h2>
+      <div class="meter">
+        <div class="meter-row"><span class="lbl">Training Progress</span><span class="val" id="trProg">67.0%</span></div>
+        <div class="meter-track" style="height:11px;"><div class="meter-fill" id="trProgBar" style="width:67%;"></div></div>
+      </div>
+      <div class="metric-grid">
+        <div class="metric-box"><div class="k">Loss</div><div class="v" style="color:#f87171;">0.234</div></div>
+        <div class="metric-box"><div class="k">Accuracy</div><div class="v" style="color:#4ade80;">94.2%</div></div>
+        <div class="metric-box"><div class="k">F1-Score</div><div class="v" style="color:#60a5fa;">0.912</div></div>
+      </div>
+      <div class="detail-rows">
+        <div class="r"><span class="lbl">Epoch</span><span id="epochVal" style="color:var(--primary)">2847</span></div>
+        <div class="r"><span class="lbl">Learning Rate</span><span id="lrVal" style="color:var(--secondary)">0.0012</span></div>
+        <div class="r"><span class="lbl">Dataset</span><span style="color:var(--primary)">HUMANOID_V3</span></div>
+        <div class="r"><span class="lbl">Model</span><span style="color:var(--secondary)">TITAN-NX</span></div>
+      </div>
+      <div class="status-live"><span class="dot-live"></span>Training</div>
+    </div>
+  </div>
 
-                scene.add(model);
-                isLoading = false;
+</div>
 
-                // Adjust camera
-                const box = new THREE.Box3().setFromObject(model);
-                const size = box.getSize(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const fov = camera.fov * (Math.PI / 180);
-                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-                cameraZ *= 1.5;
-                camera.position.z = cameraZ;
-            },
-            undefined,
-            (error) => {
-                console.error('Error loading model:', error);
-                isLoading = false;
-                createFallbackRobot();
-            }
-        );
+<script>
+/* ---------- Clock ---------- */
+function updateClock(){
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('clock').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
 
-        // Mouse controls
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
-        let rotation = { x: 0, y: 0 };
+/* ---------- Quick Actions ---------- */
+const quickActions = [
+  { label:'Walk', icon:'🚶', command:'Walk Forward' },
+  { label:'Run', icon:'🏃', command:'Run' },
+  { label:'Jump', icon:'⬆️', command:'Jump' },
+  { label:'Wave', icon:'👋', command:'Wave Hand' },
+  { label:'Bow', icon:'🙏', command:'Bow' },
+  { label:'Spin', icon:'🔄', command:'Spin' },
+  { label:'Sit', icon:'⬇️', command:'Sit Down' },
+  { label:'Stand', icon:'🧍', command:'Stand Up' },
+];
+const qaWrap = document.getElementById('quickActions');
+quickActions.forEach(a=>{
+  const btn = document.createElement('button');
+  btn.className='quick-btn';
+  btn.innerHTML = `<span class="quick-emoji">${a.icon}</span>${a.label}`;
+  btn.onclick = ()=> executeCommand(a.command);
+  qaWrap.appendChild(btn);
+});
 
-        canvas.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            previousMousePosition = { x: e.clientX, y: e.clientY };
-        });
+document.getElementById('btnStart').onclick = ()=>{
+  document.getElementById('mode').innerHTML = 'MODE: <b style="color:var(--green)">RUNNING</b>';
+  executeCommand('Initialize System');
+};
+document.getElementById('btnStop').onclick = ()=>{
+  document.getElementById('mode').innerHTML = 'MODE: <b style="color:var(--secondary)">STANDBY</b>';
+  addLog('Stop All','command');
+};
+document.getElementById('btnReset').onclick = ()=> executeCommand('Reset System');
+document.getElementById('btnConfig').onclick = ()=> executeCommand('Calibrate Sensors');
 
-        canvas.addEventListener('mousemove', (e) => {
-            if (!isDragging || !model) return;
-            
-            const deltaX = e.clientX - previousMousePosition.x;
-            const deltaY = e.clientY - previousMousePosition.y;
-            
-            rotation.y += deltaX * 0.005;
-            rotation.x += deltaY * 0.005;
-            
-            model.rotation.y = rotation.y;
-            model.rotation.x = rotation.x;
-            
-            previousMousePosition = { x: e.clientX, y: e.clientY };
-        });
+/* ---------- Command Log ---------- */
+const logBox = document.getElementById('logBox');
+let logEntries = [];
 
-        canvas.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
+function timeStr(){
+  const now = new Date();
+  const pad = n=>String(n).padStart(2,'0');
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
 
-        // Zoom
-        canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            camera.position.z += e.deltaY * 0.01;
-            camera.position.z = Math.max(2, Math.min(20, camera.position.z));
-        }, { passive: false });
+function renderLog(){
+  logBox.innerHTML = logEntries.map(l=>{
+    let cls='log-sys', prefix='$ ';
+    if(l.type==='command'){ cls='log-cmd'; prefix='> '; }
+    else if(l.type==='success'){ cls='log-ok'; prefix='✓ '; }
+    else if(l.type==='warning'){ cls='log-warn'; prefix='⚠ '; }
+    return `<div class="log-line"><span class="log-time">[${l.time}]</span><span class="${cls}">${prefix}${l.message}</span></div>`;
+  }).join('');
+  logBox.scrollTop = logBox.scrollHeight;
+}
 
-        // Fallback robot
-        function createFallbackRobot() {
-            const group = new THREE.Group();
-            
-            const headGeometry = new THREE.BoxGeometry(0.6, 0.8, 0.6);
-            const headMaterial = new THREE.MeshStandardMaterial({ color: 0xe0e0e0 });
-            const head = new THREE.Mesh(headGeometry, headMaterial);
-            head.position.y = 1.8;
-            group.add(head);
+function addLog(message,type){
+  logEntries.push({ time:timeStr(), message, type });
+  if(logEntries.length>20) logEntries = logEntries.slice(-20);
+  renderLog();
+}
 
-            scene.add(group);
-            model = group;
-        }
+function executeCommand(command){
+  addLog(`COMMAND: ${command}`,'command');
+  setTimeout(()=> addLog(`${command} executed successfully`,'success'), 500);
+}
 
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            if (!isDragging && model && !isLoading) {
-                model.rotation.y += 0.003;
-            }
-            
-            renderer.render(scene, camera);
-        }
+addLog('System initialized. Ready for commands.','system');
 
-        animate();
+/* random background events like the original React app */
+const randomEvents = [
+  { message:'Neural network analysis: 94.2% accuracy', type:'success' },
+  { message:'Muscle simulation: 87.5% efficiency', type:'success' },
+  { message:'Training progress: 67% complete', type:'system' },
+  { message:'Temperature: 36.2°C - Normal', type:'system' },
+  { message:'Battery: 98% - Optimal', type:'success' },
+];
+setInterval(()=>{
+  if(Math.random()>0.6){
+    const e = randomEvents[Math.floor(Math.random()*randomEvents.length)];
+    addLog(e.message, e.type);
+  }
+},3000);
 
-        // Handle resize
-        window.addEventListener('resize', () => {
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        });
-    </script>
+/* ---------- System status (battery/temp) ---------- */
+setInterval(()=>{
+  const batt = 95 + Math.random()*4;
+  const temp = 35.5 + Math.random()*1.2;
+  document.getElementById('battVal').textContent = batt.toFixed(0)+'%';
+  document.getElementById('tempVal').textContent = temp.toFixed(1)+'°C';
+},4000);
+
+/* ---------- Neural Network Panel ---------- */
+let nnAccuracy = 92;
+function renderActivityBars(){
+  const wrap = document.getElementById('activityBars');
+  wrap.innerHTML='';
+  for(let i=0;i<12;i++){
+    const bar = document.createElement('div');
+    bar.className='activity-bar';
+    const c1 = (Math.random()*0.8).toFixed(2);
+    const c2 = (Math.random()*0.5).toFixed(2);
+    bar.style.background = `linear-gradient(180deg, rgba(0,217,255,${c1}), rgba(0,128,255,${c2}))`;
+    const span = document.createElement('span');
+    span.style.animationDuration = (1+Math.random()*2)+'s';
+    bar.appendChild(span);
+    wrap.appendChild(bar);
+  }
+}
+renderActivityBars();
+setInterval(()=>{
+  nnAccuracy = Math.min(99, Math.max(85, nnAccuracy + (Math.random()-0.5)*4));
+  document.getElementById('nnAcc').textContent = nnAccuracy.toFixed(1)+'%';
+  document.getElementById('nnAccBar').style.width = nnAccuracy+'%';
+  renderActivityBars();
+},2000);
+
+/* ---------- Muscle Simulation Panel ---------- */
+let msEfficiency=87, msTension=65;
+const muscleGroups=[
+  {name:'Arms', value:78},
+  {name:'Legs', value:82},
+  {name:'Torso', value:88},
+  {name:'Head', value:91},
+];
+function renderMuscleGroups(){
+  const wrap = document.getElementById('muscleGroups');
+  wrap.innerHTML = `<div style="font-size:11.5px;color:var(--muted);margin-bottom:6px;">Muscle Groups</div>` +
+    muscleGroups.map(g=>`
+      <div class="muscle-row">
+        <span class="mname">${g.name}</span>
+        <div class="muscle-track"><div class="muscle-fill" style="width:${g.value}%"></div></div>
+        <span class="mval">${g.value}%</span>
+      </div>
+    `).join('');
+}
+renderMuscleGroups();
+setInterval(()=>{
+  msEfficiency = Math.min(98, Math.max(75, msEfficiency + (Math.random()-0.5)*5));
+  msTension = Math.min(95, Math.max(40, msTension + (Math.random()-0.5)*8));
+  document.getElementById('msEff').textContent = msEfficiency.toFixed(1)+'%';
+  document.getElementById('msEffBar').style.width = msEfficiency+'%';
+  document.getElementById('msTen').textContent = msTension.toFixed(1)+'%';
+  document.getElementById('msTenBar').style.width = msTension+'%';
+},2500);
+
+/* ---------- Training Metrics Panel ---------- */
+let trProgress=67, trLR=0.0012, trEpoch=2847;
+setInterval(()=>{
+  trProgress = Math.min(99, trProgress + Math.random()*0.5);
+  trLR = Math.max(0.0001, trLR - Math.random()*0.0001);
+  trEpoch += Math.floor(Math.random()*3);
+  document.getElementById('trProg').textContent = trProgress.toFixed(1)+'%';
+  document.getElementById('trProgBar').style.width = trProgress+'%';
+  document.getElementById('epochVal').textContent = trEpoch;
+  document.getElementById('lrVal').textContent = trLR.toFixed(4);
+},3000);
+
+/* ---------- Performance Timeline Chart (canvas) ---------- */
+const chartData = [
+  { t:'00:00', acc:85, eff:75, temp:35 },
+  { t:'02:00', acc:87, eff:78, temp:35.5 },
+  { t:'04:00', acc:89, eff:80, temp:36 },
+  { t:'06:00', acc:91, eff:82, temp:36.2 },
+  { t:'08:00', acc:92, eff:85, temp:36.5 },
+];
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = 180 * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  drawChart();
+}
+
+function drawChart(){
+  const w = canvas.clientWidth, h = 180;
+  ctx.clearRect(0,0,w,h);
+  const padL=30,padR=10,padT=10,padB=22;
+  const plotW = w-padL-padR, plotH = h-padT-padB;
+
+  // grid
+  ctx.strokeStyle = '#263061';
+  ctx.lineWidth = 1;
+  for(let i=0;i<=4;i++){
+    const y = padT + (plotH/4)*i;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+  }
+
+  // y-axis labels
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px monospace';
+  ctx.textAlign='right';
+  [100,75,50,25,0].forEach((v,i)=>{
+    ctx.fillText(v, padL-6, padT + (plotH/4)*i + 3);
+  });
+
+  const n = chartData.length;
+  const xStep = plotW/(n-1);
+
+  function drawLine(key, color){
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    chartData.forEach((d,i)=>{
+      const x = padL + xStep*i;
+      const y = padT + plotH - (d[key]/100)*plotH;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+  drawLine('acc','#00d9ff');
+  drawLine('eff','#0080ff');
+
+  // x labels
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign='center';
+  chartData.forEach((d,i)=>{
+    const x = padL + xStep*i;
+    ctx.fillText(d.t, x, h-6);
+  });
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+setInterval(()=>{
+  const last = chartData[chartData.length-1];
+  const now = new Date();
+  const pad = n=>String(n).padStart(2,'0');
+  chartData.push({
+    t: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    acc: Math.min(99, Math.max(85, last.acc + (Math.random()-0.5)*3)),
+    eff: Math.min(98, Math.max(75, last.eff + (Math.random()-0.5)*4)),
+    temp: Math.min(40, Math.max(34, last.temp + (Math.random()-0.5)*0.5)),
+  });
+  chartData.shift();
+  drawChart();
+},5000);
+</script>
 </body>
 </html>
