@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Control Simulator - Sci-Fi Command Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #00ff41;
+            --secondary-color: #00bfff;
+            --accent-color: #ff006e;
+            --dark-bg: #0a0e27;
+            --darker-bg: #050812;
+            --panel-bg: #1a1f3a;
+            --border-color: #00ff41;
+            --text-primary: #00ff41;
+            --text-secondary: #00bfff;
+            --warning-color: #ffa500;
+            --danger-color: #ff0040;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, var(--darker-bg) 0%, var(--dark-bg) 100%);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            background-attachment: fixed;
+        }
+
+        /* Glow effect background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at 50% 50%, rgba(0, 255, 65, 0.03) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 15px;
+            padding: 15px;
+        }
+
+        /* ===== PANELS ===== */
+        .panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2), inset 0 0 20px rgba(0, 255, 65, 0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+            opacity: 0.5;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title::before {
+            content: '▶';
+            color: var(--accent-color);
+            font-size: 10px;
+        }
+
+        /* ===== LEFT PANEL - STATUS & INDICATORS ===== */
+        .left-panel {
+            grid-column: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .status-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: rgba(0, 255, 65, 0.05);
+            border-left: 3px solid var(--accent-color);
+            font-size: 12px;
+        }
+
+        .status-label {
+            color: var(--text-secondary);
+        }
+
+        .status-value {
+            color: var(--text-primary);
+            font-weight: bold;
+        }
+
+        .indicator-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--danger-color);
+            box-shadow: 0 0 10px var(--danger-color);
+            animation: blink 1s infinite;
+        }
+
+        .indicator-light.active {
+            background: var(--primary-color);
+            box-shadow: 0 0 15px var(--primary-color);
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes blink {
+            0%, 49%, 100% { opacity: 1; }
+            50%, 99% { opacity: 0.3; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 15px var(--primary-color); }
+            50% { box-shadow: 0 0 25px var(--primary-color); }
+        }
+
+        .indicator-group {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 10px;
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            border-radius: 4px;
+        }
+
+        .indicator-item {
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== CENTER PANEL - ROBOT & VIEWPORT ===== */
+        .center-panel {
+            grid-column: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .viewport {
+            flex: 1;
+            background: linear-gradient(180deg, rgba(0, 191, 255, 0.1) 0%, rgba(0, 255, 65, 0.05) 100%);
+            border: 2px solid var(--secondary-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(0, 191, 255, 0.1);
+        }
+
+        .viewport::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 65, 0.03) 0px,
+                rgba(0, 255, 65, 0.03) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            animation: scanlines 8s linear infinite;
+        }
+
+        @keyframes scanlines {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
+
+        /* ===== ROBOT STRUCTURE ===== */
+        .robot {
+            position: relative;
+            width: 150px;
+            height: 300px;
+            z-index: 10;
+        }
+
+        /* Head */
+        .robot-head {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid var(--primary-color);
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.4), inset -2px -2px 5px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .robot-eye {
+            width: 8px;
+            height: 8px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary-color);
+            margin: 0 4px;
+        }
+
+        .robot-eyes {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Neck */
+        .robot-neck {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 15px;
+            background: linear-gradient(90deg, #0a0e27 0%, #1a1f3a 50%, #0a0e27 100%);
+            border: 1px solid var(--secondary-color);
+            border-radius: 3px;
+            transform-origin: center top;
+        }
+
+        /* Torso */
+        .robot-torso {
+            position: absolute;
+            top: 65px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 80px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3), inset -2px -2px 8px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .torso-core {
+            width: 30px;
+            height: 50px;
+            background: radial-gradient(ellipse at center, rgba(0, 255, 65, 0.3) 0%, transparent 70%);
+            border: 1px solid var(--primary-color);
+            border-radius: 50%;
+        }
+
+        /* Arms */
+        .robot-arm {
+            position: absolute;
+            top: 75px;
+            width: 60px;
+            height: 18px;
+            background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid var(--primary-color);
+            border-radius: 9px;
+            transform-origin: left center;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+        }
+
+        .robot-arm.left {
+            left: -60px;
+            transform-origin: right center;
+        }
+
+        .robot-arm.right {
+            right: -60px;
+            transform-origin: left center;
+        }
+
+        /* Legs */
+        .robot-leg {
+            position: absolute;
+            top: 145px;
+            width: 18px;
+            height: 80px;
+            background: linear-gradient(90deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid var(--primary-color);
+            border-radius: 9px;
+            transform-origin: top center;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+        }
+
+        .robot-leg.left {
+            left: 35px;
+        }
+
+        .robot-leg.right {
+            right: 35px;
+        }
+
+        /* ===== CONTROL PANEL ===== */
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .command-input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .command-input {
+            flex: 1;
+            background: rgba(0, 255, 65, 0.05);
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border-radius: 4px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .command-input:focus {
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5), inset 0 0 10px rgba(0, 255, 65, 0.1);
+            border-color: var(--secondary-color);
+        }
+
+        .command-input::placeholder {
+            color: rgba(0, 255, 65, 0.5);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1) 0%, rgba(0, 191, 255, 0.1) 100%);
+            border: 2px solid var(--primary-color);
+            color: var(--text-primary);
+            padding: 10px 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover {
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.5), inset 0 0 10px rgba(0, 255, 65, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3), inset 0 0 5px rgba(0, 255, 65, 0.2);
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, rgba(255, 0, 110, 0.2) 0%, rgba(0, 255, 65, 0.2) 100%);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .btn-send:hover {
+            box-shadow: 0 0 15px rgba(255, 0, 110, 0.5), inset 0 0 10px rgba(255, 0, 110, 0.1);
+        }
+
+        .btn-voice {
+            background: linear-gradient(135deg, rgba(0, 191, 255, 0.2) 0%, rgba(0, 255, 65, 0.2) 100%);
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
+            flex: 0 0 auto;
+        }
+
+        .btn-voice:hover {
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.5), inset 0 0 10px rgba(0, 191, 255, 0.1);
+        }
+
+        .btn-voice.listening {
+            animation: pulse-btn 0.5s infinite;
+        }
+
+        @keyframes pulse-btn {
+            0%, 100% { box-shadow: 0 0 15px rgba(0, 191, 255, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(0, 191, 255, 0.8); }
+        }
+
+        .quick-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .quick-btn {
+            padding: 8px;
+            font-size: 11px;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.05) 0%, rgba(0, 191, 255, 0.05) 100%);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+        }
+
+        .quick-btn:hover {
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.15) 0%, rgba(0, 191, 255, 0.15) 100%);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        /* ===== RIGHT PANEL - LOG ===== */
+        .right-panel {
+            grid-column: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .log-container {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            border-radius: 4px;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 11px;
+        }
+
+        .log-entry {
+            padding: 6px;
+            margin-bottom: 6px;
+            border-left: 2px solid var(--primary-color);
+            background: rgba(0, 255, 65, 0.05);
+            border-radius: 2px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            font-size: 10px;
+        }
+
+        .log-command {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .log-status {
+            color: var(--primary-color);
+        }
+
+        .log-status.error {
+            color: var(--danger-color);
+        }
+
+        .log-clear-btn {
+            padding: 8px;
+            font-size: 11px;
+            background: rgba(255, 0, 64, 0.1);
+            border: 1px solid rgba(255, 0, 64, 0.3);
+        }
+
+        .log-clear-btn:hover {
+            background: rgba(255, 0, 64, 0.2);
+            border-color: var(--danger-color);
+            box-shadow: 0 0 10px rgba(255, 0, 64, 0.3);
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes walk-forward {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(20px);
+            }
+            75% {
+                transform: translateX(20px);
+            }
+        }
+
+        @keyframes walk-backward {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-20px);
+            }
+            75% {
+                transform: translateX(-20px);
+            }
+        }
+
+        @keyframes jump {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-100px);
+            }
+        }
+
+        @keyframes wave {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            25% {
+                transform: rotate(-30deg);
+            }
+            75% {
+                transform: rotate(30deg);
+            }
+        }
+
+        @keyframes bow {
+            0%, 100% {
+                transform: rotateX(0deg);
+            }
+            50% {
+                transform: rotateX(45deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotateZ(0deg);
+            }
+            100% {
+                transform: rotateZ(360deg);
+            }
+        }
+
+        @keyframes somersault {
+            0% {
+                transform: rotateX(0deg) translateY(0);
+            }
+            50% {
+                transform: rotateX(180deg) translateY(-50px);
+            }
+            100% {
+                transform: rotateX(360deg) translateY(0);
+            }
+        }
+
+        @keyframes sit {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(60px);
+            }
+        }
+
+        @keyframes run {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(40px);
+            }
+            75% {
+                transform: translateX(40px);
+            }
+        }
+
+        /* Animation states */
+        .robot.walk-forward {
+            animation: walk-forward 2s ease-in-out;
+        }
+
+        .robot.walk-backward {
+            animation: walk-backward 2s ease-in-out;
+        }
+
+        .robot.jump {
+            animation: jump 1s ease-in-out;
+        }
+
+        .robot.run {
+            animation: run 1.2s ease-in-out;
+        }
+
+        .robot.spin {
+            animation: spin 2s linear;
+        }
+
+        .robot.somersault {
+            animation: somersault 2s ease-in-out;
+        }
+
+        .robot.sit {
+            animation: sit 1.5s ease-in-out;
+        }
+
+        .robot-arm.wave-left {
+            animation: wave 1s ease-in-out;
+        }
+
+        .robot-arm.wave-right {
+            animation: wave 1s ease-in-out reverse;
+        }
+
+        .robot-head.bow {
+            animation: bow 1.5s ease-in-out;
+        }
+
+        .robot-leg.walk-left {
+            animation: legWalk 1s ease-in-out infinite;
+        }
+
+        .robot-leg.walk-right {
+            animation: legWalk 1s ease-in-out 0.5s infinite;
+        }
+
+        @keyframes legWalk {
+            0%, 100% {
+                transform: rotateX(0deg);
+            }
+            50% {
+                transform: rotateX(-30deg);
+            }
+        }
+
+        /* ===== SCROLLBAR STYLING ===== */
+        .log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background: rgba(0, 255, 65, 0.05);
+            border-radius: 4px;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        .log-container::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-color);
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+            }
+
+            .left-panel {
+                grid-column: 1;
+            }
+
+            .center-panel {
+                grid-column: 1;
+            }
+
+            .right-panel {
+                grid-column: 1;
+            }
+        }
+
+        /* Status animation */
+        .status-item.active {
+            background: rgba(0, 255, 65, 0.15);
+            border-left-color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- LEFT PANEL: STATUS & INDICATORS -->
+        <div class="left-panel">
+            <div class="panel">
+                <div class="panel-title">System Status</div>
+                <div class="status-display">
+                    <div class="status-item">
+                        <span class="status-label">Power</span>
+                        <span class="status-value">ON</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Battery</span>
+                        <span class="status-value">98%</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Temp</span>
+                        <span class="status-value">36°C</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Mode</span>
+                        <span class="status-value">ACTIVE</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">Indicators</div>
+                <div class="indicator-group">
+                    <div class="indicator-item">
+                        <div class="indicator-light active"></div>
+                        <div>CPU</div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-light active"></div>
+                        <div>NET</div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-light active"></div>
+                        <div>SYS</div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-light"></div>
+                        <div>ERR</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER PANEL: ROBOT & CONTROL -->
+        <div class="center-panel">
+            <div class="panel viewport">
+                <div class="robot" id="robot">
+                    <div class="robot-head" id="head">
+                        <div class="robot-eyes">
+                            <div class="robot-eye"></div>
+                            <div class="robot-eye"></div>
+                        </div>
+                    </div>
+                    <div class="robot-neck" id="neck"></div>
+                    <div class="robot-torso">
+                        <div class="torso-core"></div>
+                    </div>
+                    <div class="robot-arm left" id="arm-left"></div>
+                    <div class="robot-arm right" id="arm-right"></div>
+                    <div class="robot-leg left" id="leg-left"></div>
+                    <div class="robot-leg right" id="leg-right"></div>
+                </div>
+            </div>
+
+            <div class="panel control-panel">
+                <div class="panel-title">Command Input</div>
+                <div class="command-input-group">
+                    <input 
+                        type="text" 
+                        class="command-input" 
+                        id="commandInput" 
+                        placeholder="Enter command (walk, jump, wave, etc.)"
+                        autocomplete="off"
+                    >
+                    <button class="btn btn-send" id="sendBtn">Send</button>
+                    <button class="btn btn-voice" id="voiceBtn" title="Voice Command">🎤</button>
+                </div>
+
+                <div class="panel-title" style="margin-top: 10px;">Quick Actions</div>
+                <div class="quick-buttons">
+                    <button class="btn quick-btn" data-command="walk forward">Walk →</button>
+                    <button class="btn quick-btn" data-command="walk backward">← Walk</button>
+                    <button class="btn quick-btn" data-command="jump">Jump ↑</button>
+                    <button class="btn quick-btn" data-command="run">Run ▶</button>
+                    <button class="btn quick-btn" data-command="wave">Wave 👋</button>
+                    <button class="btn quick-btn" data-command="bow">Bow 🙏</button>
+                    <button class="btn quick-btn" data-command="spin">Spin 🔄</button>
+                    <button class="btn quick-btn" data-command="somersault">Flip 🤸</button>
+                    <button class="btn quick-btn" data-command="sit">Sit ⬇</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: LOG -->
+        <div class="right-panel">
+            <div class="panel">
+                <div class="panel-title">Command Log</div>
+                <div class="log-container" id="logContainer"></div>
+                <button class="btn log-clear-btn" id="clearLogBtn">Clear Log</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== ROBOT CONTROLLER =====
+        class RobotController {
+            constructor() {
+                this.robot = document.getElementById('robot');
+                this.head = document.getElementById('head');
+                this.neck = document.getElementById('neck');
+                this.armLeft = document.getElementById('arm-left');
+                this.armRight = document.getElementById('arm-right');
+                this.legLeft = document.getElementById('leg-left');
+                this.legRight = document.getElementById('leg-right');
+                this.commandInput = document.getElementById('commandInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.voiceBtn = document.getElementById('voiceBtn');
+                this.logContainer = document.getElementById('logContainer');
+                this.clearLogBtn = document.getElementById('clearLogBtn');
+                this.isAnimating = false;
+                this.lastCommand = null;
+
+                this.initEventListeners();
+                this.initVoiceRecognition();
+                this.addLog('SYSTEM', 'Robot Control Simulator initialized', 'success');
+            }
+
+            initEventListeners() {
+                this.sendBtn.addEventListener('click', () => this.executeCommand());
+                this.commandInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.executeCommand();
+                });
+                this.voiceBtn.addEventListener('click', () => this.startVoiceCommand());
+                this.clearLogBtn.addEventListener('click', () => this.clearLog());
+
+                // Quick action buttons
+                document.querySelectorAll('.quick-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const command = btn.dataset.command;
+                        this.commandInput.value = command;
+                        this.executeCommand();
+                    });
+                });
+            }
+
+            initVoiceRecognition() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    this.addLog('SYSTEM', 'Voice recognition not supported', 'error');
+                    this.voiceBtn.disabled = true;
+                    return;
+                }
+
+                this.recognition = new SpeechRecognition();
+                this.recognition.continuous = false;
+                this.recognition.interimResults = false;
+                this.recognition.lang = 'en-US';
+
+                this.recognition.onstart = () => {
+                    this.voiceBtn.classList.add('listening');
+                    this.addLog('VOICE', 'Listening...', 'status');
+                };
+
+                this.recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript.toLowerCase();
+                    this.commandInput.value = transcript;
+                    this.executeCommand();
+                };
+
+                this.recognition.onerror = (event) => {
+                    this.addLog('VOICE', `Error: ${event.error}`, 'error');
+                };
+
+                this.recognition.onend = () => {
+                    this.voiceBtn.classList.remove('listening');
+                };
+            }
+
+            startVoiceCommand() {
+                if (this.recognition) {
+                    this.recognition.start();
+                }
+            }
+
+            executeCommand() {
+                const command = this.commandInput.value.trim().toLowerCase();
+                if (!command) return;
+
+                this.commandInput.value = '';
+                this.addLog('INPUT', command, 'command');
+
+                if (this.isAnimating) {
+                    this.addLog('SYSTEM', 'Robot is busy, please wait', 'error');
+                    return;
+                }
+
+                this.performAction(command);
+            }
+
+            performAction(command) {
+                this.isAnimating = true;
+                this.lastCommand = command;
+
+                // Parse command
+                let action = command.split(' ')[0];
+                let direction = command.split(' ')[1];
+
+                switch (action) {
+                    case 'walk':
+                        if (direction === 'forward' || direction === 'ahead') {
+                            this.walkForward();
+                        } else if (direction === 'backward' || direction === 'back') {
+                            this.walkBackward();
+                        } else {
+                            this.walkForward();
+                        }
+                        break;
+                    case 'jump':
+                        this.jump();
+                        break;
+                    case 'wave':
+                        this.wave();
+                        break;
+                    case 'bow':
+                        this.bow();
+                        break;
+                    case 'spin':
+                    case 'rotate':
+                        this.spin();
+                        break;
+                    case 'somersault':
+                    case 'flip':
+                        this.somersault();
+                        break;
+                    case 'run':
+                        this.run();
+                        break;
+                    case 'sit':
+                    case 'down':
+                        this.sit();
+                        break;
+                    case 'stand':
+                    case 'up':
+                        this.stand();
+                        break;
+                    default:
+                        this.addLog('SYSTEM', `Unknown command: ${action}`, 'error');
+                        this.isAnimating = false;
+                        return;
+                }
+
+                this.playSound('beep');
+            }
+
+            walkForward() {
+                this.removeAllAnimations();
+                this.robot.classList.add('walk-forward');
+                this.legLeft.classList.add('walk-left');
+                this.legRight.classList.add('walk-right');
+                this.addLog('ACTION', 'Walking forward', 'status');
+                setTimeout(() => this.resetAnimation(), 2000);
+            }
+
+            walkBackward() {
+                this.removeAllAnimations();
+                this.robot.classList.add('walk-backward');
+                this.legLeft.classList.add('walk-left');
+                this.legRight.classList.add('walk-right');
+                this.addLog('ACTION', 'Walking backward', 'status');
+                setTimeout(() => this.resetAnimation(), 2000);
+            }
+
+            jump() {
+                this.removeAllAnimations();
+                this.robot.classList.add('jump');
+                this.addLog('ACTION', 'Jumping', 'status');
+                setTimeout(() => this.resetAnimation(), 1000);
+            }
+
+            wave() {
+                this.removeAllAnimations();
+                this.armLeft.classList.add('wave-left');
+                this.armRight.classList.add('wave-right');
+                this.addLog('ACTION', 'Waving', 'status');
+                setTimeout(() => this.resetAnimation(), 1000);
+            }
+
+            bow() {
+                this.removeAllAnimations();
+                this.head.classList.add('bow');
+                this.addLog('ACTION', 'Bowing', 'status');
+                setTimeout(() => this.resetAnimation(), 1500);
+            }
+
+            spin() {
+                this.removeAllAnimations();
+                this.robot.classList.add('spin');
+                this.addLog('ACTION', 'Spinning', 'status');
+                setTimeout(() => this.resetAnimation(), 2000);
+            }
+
+            somersault() {
+                this.removeAllAnimations();
+                this.robot.classList.add('somersault');
+                this.addLog('ACTION', 'Performing somersault', 'status');
+                setTimeout(() => this.resetAnimation(), 2000);
+            }
+
+            run() {
+                this.removeAllAnimations();
+                this.robot.classList.add('run');
+                this.legLeft.classList.add('walk-left');
+                this.legRight.classList.add('walk-right');
+                this.addLog('ACTION', 'Running', 'status');
+                setTimeout(() => this.resetAnimation(), 1200);
+            }
+
+            sit() {
+                this.removeAllAnimations();
+                this.robot.classList.add('sit');
+                this.addLog('ACTION', 'Sitting down', 'status');
+                setTimeout(() => this.resetAnimation(), 1500);
+            }
+
+            stand() {
+                this.removeAllAnimations();
+                this.addLog('ACTION', 'Standing up', 'status');
+                setTimeout(() => this.resetAnimation(), 500);
+            }
+
+            removeAllAnimations() {
+                this.robot.className = 'robot';
+                this.head.className = 'robot-head';
+                this.armLeft.className = 'robot-arm left';
+                this.armRight.className = 'robot-arm right';
+                this.legLeft.className = 'robot-leg left';
+                this.legRight.className = 'robot-leg right';
+            }
+
+            resetAnimation() {
+                this.removeAllAnimations();
+                this.isAnimating = false;
+                this.addLog('SYSTEM', 'Ready for next command', 'status');
+            }
+
+            playSound(type) {
+                // Create a simple beep sound using Web Audio API
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                if (type === 'beep') {
+                    oscillator.frequency.value = 800;
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.1);
+                } else if (type === 'success') {
+                    oscillator.frequency.value = 1000;
+                    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.2);
+                }
+            }
+
+            addLog(source, message, type = 'normal') {
+                const entry = document.createElement('div');
+                entry.className = `log-entry`;
+                const time = new Date().toLocaleTimeString();
+                entry.innerHTML = `
+                    <div class="log-time">[${time}]</div>
+                    <div><span class="log-command">${source}:</span> <span class="log-status ${type === 'error' ? 'error' : ''}">${message}</span></div>
+                `;
+                this.logContainer.appendChild(entry);
+                this.logContainer.scrollTop = this.logContainer.scrollHeight;
+            }
+
+            clearLog() {
+                this.logContainer.innerHTML = '';
+                this.addLog('SYSTEM', 'Log cleared', 'status');
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            new RobotController();
+        });
+    </script>
+</body>
+</html>
