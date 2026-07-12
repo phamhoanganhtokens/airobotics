@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RX-07 Robot Testing Control Center</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@r128/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr 300px;
+            gap: 16px;
+            padding: 16px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: rgba(0, 217, 255, 0.05);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.1);
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #00d9ff;
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        }
+
+        .header-status {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .header-time {
+            font-size: 14px;
+            color: #00d9ff;
+            font-weight: bold;
+        }
+
+        /* Left Panel */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        /* Center Panel */
+        .center-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        /* Right Panel */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        /* Card Styles */
+        .card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #00d9ff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Control Panel */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d9ff 0%, #0080ff 100%);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.5);
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(0, 217, 255, 0.8);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ff9900 0%, #ff6600 100%);
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 153, 0, 0.5);
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 12px;
+            background: rgba(0, 128, 255, 0.1);
+            border: 1px solid rgba(0, 128, 255, 0.3);
+            border-radius: 6px;
+            color: #00d9ff;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .action-btn:hover {
+            background: rgba(0, 128, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 128, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        /* 3D Viewer */
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .canvas-instructions {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(10, 14, 39, 0.8);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #00d9ff;
+        }
+
+        .canvas-status {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(10, 14, 39, 0.8);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #00d9ff;
+        }
+
+        /* Data Display */
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 217, 255, 0.1);
+            font-size: 12px;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            color: #a0a0a0;
+        }
+
+        .data-value {
+            color: #00d9ff;
+            font-weight: bold;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 217, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d9ff 0%, #0080ff 100%);
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+            transition: width 0.3s ease;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 217, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 217, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 217, 255, 0.5);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(0, 217, 255, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(0, 217, 255, 0.6); }
+        }
+
+        .glow {
+            animation: glow 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header" style="grid-column: 1 / -1;">
+            <div class="header-title">
+                <span>⚙️</span>
+                <span>RX-07 CONTROL DECK</span>
+                <span style="font-size: 12px; color: #a0a0a0;">Robot Testing Control Center</span>
+            </div>
+            <div class="header-status">
+                <div class="status-item">
+                    <span class="status-indicator"></span>
+                    <span>SYSTEM: ONLINE</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-indicator" style="background: #0080ff; box-shadow: 0 0 10px #0080ff;"></span>
+                    <span>MODE: STANDBY</span>
+                </div>
+            </div>
+            <div class="header-time" id="current-time">10:11:43 UTC+7</div>
+        </div>
+
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <!-- Main Controls -->
+            <div class="card">
+                <div class="card-title">⏯️ MAIN CONTROLS</div>
+                <div class="control-grid">
+                    <button class="btn btn-success">▶ START</button>
+                    <button class="btn btn-danger">⏹ STOP</button>
+                    <button class="btn btn-primary">⟲ RESET</button>
+                    <button class="btn btn-warning">⚙ CONFIG</button>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-title">⚡ QUICK ACTIONS</div>
+                <div class="quick-actions">
+                    <div class="action-btn">🚶 Walk</div>
+                    <div class="action-btn">🏃 Run</div>
+                    <div class="action-btn">🦘 Jump</div>
+                    <div class="action-btn">👋 Wave</div>
+                    <div class="action-btn">🙇 Bow</div>
+                    <div class="action-btn">🔄 Spin</div>
+                    <div class="action-btn">🪑 Sit</div>
+                    <div class="action-btn">🧍 Stand</div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="card">
+                <div class="card-title">📊 SYSTEM STATUS</div>
+                <div class="data-row">
+                    <span class="data-label">Power:</span>
+                    <span class="data-value">ON</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Battery:</span>
+                    <span class="data-value">98%</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Temp:</span>
+                    <span class="data-value">36°C</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Status:</span>
+                    <span class="data-value">READY</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel -->
+        <div class="center-panel">
+            <!-- 3D Viewer -->
+            <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="card-title">🤖 HUMANOID 3D MODEL</div>
+                <div id="canvas-container" style="flex: 1;">
+                    <canvas id="canvas"></canvas>
+                    <div class="canvas-overlay">
+                        <div class="canvas-instructions">
+                            <div>🖱️ Drag to rotate</div>
+                            <div>🔍 Scroll to zoom</div>
+                        </div>
+                        <div class="canvas-status">
+                            <div>RX-07</div>
+                            <div style="font-size: 10px; color: #a0a0a0;">INTERACTIVE</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <!-- Neural Network -->
+            <div class="card">
+                <div class="card-title">🧠 NEURAL NETWORK</div>
+                <div class="data-row">
+                    <span class="data-label">Accuracy</span>
+                    <span class="data-value">92.0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 92%;"></div>
+                </div>
+                <div class="data-row" style="margin-top: 8px;">
+                    <span class="data-label">Layers</span>
+                    <span class="data-value">8</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Nodes</span>
+                    <span class="data-value">2048</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Activity</span>
+                    <span class="data-value pulse">● Training</span>
+                </div>
+            </div>
+
+            <!-- Muscle Simulation -->
+            <div class="card">
+                <div class="card-title">💪 MUSCLE SIMULATION</div>
+                <div class="data-row">
+                    <span class="data-label">Efficiency</span>
+                    <span class="data-value">87.0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 87%;"></div>
+                </div>
+                <div class="data-row" style="margin-top: 8px;">
+                    <span class="data-label">Tension</span>
+                    <span class="data-value">65.0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 65%; background: linear-gradient(90deg, #ff9900 0%, #ff6600 100%);"></div>
+                </div>
+                <div class="data-row" style="margin-top: 8px;">
+                    <span class="data-label">Muscle Groups</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Arms</span>
+                    <span class="data-value">78%</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Legs</span>
+                    <span class="data-value">82%</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Torso</span>
+                    <span class="data-value">88%</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Head</span>
+                    <span class="data-value">91%</span>
+                </div>
+            </div>
+
+            <!-- AI Training -->
+            <div class="card">
+                <div class="card-title">🤖 AI TRAINING METRICS</div>
+                <div class="data-row">
+                    <span class="data-label">Progress</span>
+                    <span class="data-value">67.0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 67%;"></div>
+                </div>
+                <div class="data-row" style="margin-top: 8px;">
+                    <span class="data-label">Loss</span>
+                    <span class="data-value">0.234</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Accuracy</span>
+                    <span class="data-value">94.2%</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">F1-Score</span>
+                    <span class="data-value">0.912</span>
+                </div>
+                <div class="data-row" style="margin-top: 8px;">
+                    <span class="data-label">Epoch</span>
+                    <span class="data-value">2847</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Learning Rate</span>
+                    <span class="data-value">0.0012</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Dataset</span>
+                    <span class="data-value">HUMANOID_V3</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Model</span>
+                    <span class="data-value">TITAN-NX</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                timeZone: 'Asia/Bangkok' 
+            });
+            document.getElementById('current-time').textContent = time + ' UTC+7';
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Three.js Setup
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0e27);
+        scene.fog = new THREE.Fog(0x0a0e27, 50, 100);
+
+        const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0x00d9ff, 1);
+        directionalLight.position.set(10, 10, 10);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        const pointLight = new THREE.PointLight(0x0080ff, 0.8);
+        pointLight.position.set(-10, 5, 5);
+        scene.add(pointLight);
+
+        // Load GLTF Model
+        const loader = new THREE.GLTFLoader();
+        let model = null;
+        let isLoading = true;
+
+        loader.load(
+            'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/models/gltf/Xbot.glb',
+            (gltf) => {
+                model = gltf.scene;
+                model.scale.set(1, 1, 1);
+                model.position.set(0, 0, 0);
+                
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        if (child.material) {
+                            child.material.emissive.setHex(0x00d9ff);
+                            child.material.emissiveIntensity = 0.1;
+                        }
+                    }
+                });
+
+                scene.add(model);
+                isLoading = false;
+
+                // Adjust camera
+                const box = new THREE.Box3().setFromObject(model);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = camera.fov * (Math.PI / 180);
+                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+                cameraZ *= 1.5;
+                camera.position.z = cameraZ;
+            },
+            undefined,
+            (error) => {
+                console.error('Error loading model:', error);
+                isLoading = false;
+                createFallbackRobot();
+            }
+        );
+
+        // Mouse controls
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let rotation = { x: 0, y: 0 };
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging || !model) return;
+            
+            const deltaX = e.clientX - previousMousePosition.x;
+            const deltaY = e.clientY - previousMousePosition.y;
+            
+            rotation.y += deltaX * 0.005;
+            rotation.x += deltaY * 0.005;
+            
+            model.rotation.y = rotation.y;
+            model.rotation.x = rotation.x;
+            
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Zoom
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            camera.position.z += e.deltaY * 0.01;
+            camera.position.z = Math.max(2, Math.min(20, camera.position.z));
+        }, { passive: false });
+
+        // Fallback robot
+        function createFallbackRobot() {
+            const group = new THREE.Group();
+            
+            const headGeometry = new THREE.BoxGeometry(0.6, 0.8, 0.6);
+            const headMaterial = new THREE.MeshStandardMaterial({ color: 0xe0e0e0 });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 1.8;
+            group.add(head);
+
+            scene.add(group);
+            model = group;
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (!isDragging && model && !isLoading) {
+                model.rotation.y += 0.003;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+    </script>
+</body>
+</html>
