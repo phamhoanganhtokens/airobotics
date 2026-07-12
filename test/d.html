@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS-7 | AI Robotics Control Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: '#05050a',
+                        neonCyan: '#00f3ff',
+                        neonBlue: '#00b8ff',
+                        neonMagenta: '#ff00aa',
+                        success: '#00ff9d',
+                        warning: '#ffd700',
+                        danger: '#ff3366'
+                    },
+                    fontFamily: {
+                        display: ['"Orbitron"', 'sans-serif'],
+                        mono: ['"Share Tech Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #05050a; color: #e2e8f0; overflow: hidden; }
+        .glass { background: rgba(10, 10, 20, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(0, 243, 255, 0.2); }
+        .scanlines { pointer-events: none; position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.5) 50%); background-size: 100% 4px; z-index: 50; }
+        .flicker { animation: flicker 0.15s infinite; }
+        @keyframes flicker { 0% { opacity: 0.98; } 50% { opacity: 0.95; } 100% { opacity: 0.98; } }
+        .neon-text { text-shadow: 0 0 8px currentColor; }
+        .neon-border { border-color: currentColor; box-shadow: 0 0 10px currentColor; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #00f3ff; }
+    </style>
+</head>
+<body class="font-mono h-screen w-screen p-4 flex flex-col gap-4 text-sm relative">
+    <div class="scanlines"></div>
+
+    <!-- Header -->
+    <header class="glass p-4 flex justify-between items-center rounded-lg shadow-[0_0_15px_rgba(0,243,255,0.1)]">
+        <div class="flex items-center gap-4">
+            <h1 class="text-neonCyan font-bold text-xl tracking-widest neon-text">NEXUS-7 [CORE]</h1>
+            <span class="text-xs text-gray-500">v2.4.9</span>
+        </div>
+        <div class="flex items-center gap-6">
+            <div id="clock" class="text-neonMagenta font-bold">00:00:00</div>
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+                <span class="text-success uppercase text-[10px] tracking-wider">Online</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <main class="grid grid-cols-12 gap-4 flex-grow overflow-hidden">
+        
+        <!-- Left: Control Panel -->
+        <div class="col-span-3 glass p-6 flex flex-col gap-6 rounded-lg">
+            <h2 class="text-neonCyan uppercase tracking-widest text-xs border-b border-white/10 pb-2">Tactical Movement</h2>
+            <div class="grid grid-cols-2 gap-2">
+                <button class="bg-white/5 hover:bg-neonCyan/20 border border-neonCyan/30 p-2 text-[10px] transition-all">WALK</button>
+                <button class="bg-white/5 hover:bg-neonCyan/20 border border-neonCyan/30 p-2 text-[10px] transition-all">TURN</button>
+                <button class="bg-white/5 hover:bg-neonCyan/20 border border-neonCyan/30 p-2 text-[10px] transition-all">STEP</button>
+                <button class="bg-white/5 hover:bg-danger/20 border border-danger/30 p-2 text-[10px] transition-all text-danger">HALT</button>
+            </div>
+            <div class="space-y-4">
+                <label class="block text-[10px] text-gray-400">Locomotion Speed (m/s)</label>
+                <input type="range" class="w-full accent-neonCyan" min="0" max="3" step="0.1">
+                <label class="block text-[10px] text-gray-400">Body Tilt Angle (deg)</label>
+                <input type="range" class="w-full accent-neonCyan" min="-15" max="15">
+            </div>
+        </div>
+
+        <!-- Center: Telemetry -->
+        <div class="col-span-6 glass p-6 rounded-lg flex flex-col">
+            <h2 class="text-neonCyan uppercase tracking-widest text-xs border-b border-white/10 pb-2 mb-4">Kinematic Real-time Data</h2>
+            <div class="flex-grow flex items-center justify-center relative overflow-hidden">
+                <svg viewBox="0 0 400 200" class="w-full h-full">
+                    <polyline id="kinematic-wave" fill="none" stroke="#00f3ff" stroke-width="2" points="0,100 50,50 100,150 150,100 200,50 250,150 300,100 400,100" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Right: Vitals -->
+        <div class="col-span-3 glass p-6 flex flex-col gap-6 rounded-lg">
+            <h2 class="text-neonCyan uppercase tracking-widest text-xs border-b border-white/10 pb-2">Vital Systems</h2>
+            <div>
+                <div class="flex justify-between text-[10px] mb-1"><span>Battery</span><span id="bat-val">98%</span></div>
+                <div class="h-2 bg-gray-800 rounded"><div id="bat-bar" class="h-full bg-success w-[98%]"></div></div>
+            </div>
+            <div>
+                <div class="flex justify-between text-[10px] mb-1"><span>AI Confidence</span><span id="ai-val">88%</span></div>
+                <div class="relative h-24 flex items-center justify-center">
+                    <svg class="w-24 h-24 rotate-[-90deg]">
+                        <circle cx="48" cy="48" r="40" stroke="rgba(255,255,255,0.1)" stroke-width="8" fill="none" />
+                        <circle id="ai-circle" cx="48" cy="48" r="40" stroke="#00f3ff" stroke-width="8" fill="none" stroke-dasharray="251" stroke-dashoffset="30" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Terminal -->
+    <div id="terminal" class="glass h-32 p-4 rounded-lg overflow-y-auto custom-scrollbar text-[10px] text-gray-300 font-mono">
+        <div class="text-neonCyan">[SYSTEM]: Khởi tạo module điều khiển Nexus-7...</div>
+        <div class="text-neonCyan">[SYSTEM]: Đang kết nối cảm biến động học...</div>
+    </div>
+
+    <script>
+        // Clock
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('vi-VN');
+        }, 1000);
+
+        // Terminal Log
+        const logs = [
+            "Đang hiệu chỉnh cân bằng trọng tâm...",
+            "Phát hiện sai lệch địa hình: 0.02m",
+            "Đang đồng bộ Neural Network v4.2",
+            "Cảnh báo: Áp suất thủy lực ổn định",
+            "Spatial mapping: Hoàn tất 88%"
+        ];
+        setInterval(() => {
+            const term = document.getElementById('terminal');
+            const entry = document.createElement('div');
+            entry.innerText = `[${new Date().toLocaleTimeString('vi-VN')}]: ${logs[Math.floor(Math.random()*logs.length)]}`;
+            term.appendChild(entry);
+            term.scrollTop = term.scrollHeight;
+        }, 3000);
+
+        // Kinematic Simulation
+        let offset = 0;
+        function updateWave() {
+            const poly = document.getElementById('kinematic-wave');
+            let points = "";
+            for(let i=0; i<=400; i+=40) {
+                points += `${i},${100 + Math.sin((i+offset)*0.05)*40} `;
+            }
+            poly.setAttribute('points', points);
+            offset += 2;
+            requestAnimationFrame(updateWave);
+        }
+        updateWave();
+
+        // Battery / AI Simulation
+        setInterval(() => {
+            const b = document.getElementById('bat-val');
+            const bar = document.getElementById('bat-bar');
+            let val = parseInt(b.innerText);
+            if(val > 20) val--;
+            b.innerText = val + "%";
+            bar.style.width = val + "%";
+            
+            const ai = Math.floor(Math.random() * 30) + 70;
+            document.getElementById('ai-val').innerText = ai + "%";
+            const circle = document.getElementById('ai-circle');
+            circle.style.strokeDashoffset = 251 - (251 * ai / 100);
+            circle.style.stroke = ai > 70 ? "#00f3ff" : "#ff3366";
+        }, 5000);
+    </script>
+</body>
+</html>
