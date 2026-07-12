@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEURAL-LINK AI ROBOTICS | DASHBOARD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --obsidian: #05050a;
+            --neon-cyan: #00f3ff;
+            --neon-blue: #00b8ff;
+            --neon-magenta: #ff00ff;
+            --success: #00ff41;
+            --danger: #ff0000;
+        }
+
+        body {
+            background-color: var(--obsidian);
+            font-family: 'JetBrains Mono', monospace;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, .heading { font-family: 'Orbitron', sans-serif; }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .neon-glow { text-shadow: 0 0 10px var(--neon-cyan); }
+        .scanline {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.2) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.1;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .blink { animation: blink 1s infinite; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="scanline"></div>
+
+    <header class="flex flex-col md:flex-row justify-between items-center mb-8 glass p-6 rounded-xl">
+        <div>
+            <h1 class="text-3xl font-black italic tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">NEURAL-LINK AI</h1>
+            <p class="text-[10px] uppercase text-cyan-500">ROBOTICS CONTROL SYSTEM V4.0.2-OMEGA</p>
+        </div>
+        <div id="clock" class="text-2xl font-bold font-mono tracking-tighter text-cyan-300">00:00:00</div>
+    </header>
+
+    <main class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <!-- Status Metrics -->
+        <div class="xl:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass p-4 rounded-lg">
+                <span class="text-[10px] uppercase">Dung lượng Pin</span>
+                <div class="w-full h-2 bg-gray-800 rounded mt-2"><div id="bat-bar" class="h-full bg-cyan-500 transition-all duration-500" style="width: 88%"></div></div>
+                <p id="bat-val" class="text-right text-sm mt-1">88%</p>
+            </div>
+            <div class="glass p-4 rounded-lg">
+                <span class="text-[10px] uppercase">Cường độ Tín hiệu</span>
+                <div class="w-full h-2 bg-gray-800 rounded mt-2"><div id="sig-bar" class="h-full bg-purple-500 transition-all duration-500" style="width: 92%"></div></div>
+                <p id="sig-val" class="text-right text-sm mt-1">-42 dBm</p>
+            </div>
+            <div class="glass p-4 rounded-lg">
+                <span class="text-[10px] uppercase">Nhiệt độ CPU</span>
+                <div class="w-full h-2 bg-gray-800 rounded mt-2"><div id="cpu-bar" class="h-full bg-green-500 transition-all duration-500" style="width: 45%"></div></div>
+                <p id="cpu-val" class="text-right text-sm mt-1">45°C</p>
+            </div>
+        </div>
+
+        <!-- Camera Viewport -->
+        <div class="xl:col-span-2 glass p-4 rounded-xl relative aspect-video flex items-center justify-center border-2 border-cyan-900/50">
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="w-32 h-32 border border-cyan-500/50 rounded-full animate-pulse"></div>
+            </div>
+            <p class="text-cyan-500/30 text-xs font-mono uppercase tracking-widest">[Camera Feed Active: 1920x1080 | Latency: 14ms]</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="glass p-6 rounded-xl flex flex-col gap-4">
+            <h2 class="text-xl font-bold uppercase tracking-wider">Điều khiển</h2>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="addLog('DI CHUYỂN TỚI TRƯỚC')" class="bg-cyan-950 p-2 hover:bg-cyan-500 transition-all border border-cyan-500">TỚI</button>
+                <button onclick="addLog('DI CHUYỂN LÙI')" class="bg-cyan-950 p-2 hover:bg-cyan-500 transition-all border border-cyan-500">LÙI</button>
+                <button onclick="addLog('RẼ TRÁI')" class="bg-cyan-950 p-2 hover:bg-cyan-500 transition-all border border-cyan-500">TRÁI</button>
+                <button onclick="addLog('RẼ PHẢI')" class="bg-cyan-950 p-2 hover:bg-cyan-500 transition-all border border-cyan-500">PHẢI</button>
+                <button onclick="addLog('VẪY TAY CHÀO')" class="col-span-2 bg-purple-900 p-2 hover:bg-purple-500 transition-all border border-purple-500">VẪY TAY</button>
+            </div>
+            <button onclick="addLog('DỪNG KHẨN CẤP!', true)" class="mt-4 bg-red-600 hover:bg-red-500 py-4 font-bold tracking-widest blink">STOP EMERGENCY</button>
+        </div>
+
+        <!-- Chart -->
+        <div class="glass p-6 rounded-xl h-64">
+            <h3 class="text-xs uppercase mb-4 text-cyan-400">Tốc độ động cơ (m/s)</h3>
+            <canvas id="velocityChart"></canvas>
+        </div>
+
+        <!-- Logs -->
+        <div class="glass p-6 rounded-xl h-64 overflow-y-auto font-mono text-xs" id="console">
+            <h3 class="text-xs uppercase mb-4 text-green-400">Nhật ký Hệ thống</h3>
+        </div>
+    </main>
+
+    <div class="mt-8 text-center text-[10px] text-gray-600 uppercase tracking-widest">
+        Powered by www.phamhoanganhtokens.com
+    </div>
+
+    <script>
+        // Clock
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('vi-VN');
+        }, 1000);
+
+        // Simulation
+        setInterval(() => {
+            const bat = Math.max(0, Math.min(100, Math.floor(Math.random() * 10) + 80));
+            const cpu = Math.floor(Math.random() * 20) + 40;
+            const sig = Math.floor(Math.random() * 20) - 60;
+            
+            document.getElementById('bat-bar').style.width = bat + '%';
+            document.getElementById('bat-val').innerText = bat + '%';
+            document.getElementById('cpu-bar').style.width = cpu + '%';
+            document.getElementById('cpu-val').innerText = cpu + '°C';
+            document.getElementById('sig-bar').style.width = (sig + 100) + '%';
+            document.getElementById('sig-val').innerText = sig + ' dBm';
+        }, 3000);
+
+        // Logs
+        function addLog(msg, error = false) {
+            const consoleEl = document.getElementById('console');
+            const time = new Date().toLocaleTimeString('vi-VN');
+            const div = document.createElement('div');
+            div.className = error ? 'text-red-500' : 'text-cyan-200';
+            div.innerHTML = `[${time}] > ${msg}`;
+            consoleEl.prepend(div);
+        }
+
+        // Chart
+        const ctx = document.getElementById('velocityChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(10).fill(''),
+                datasets: [{ data: Array(10).fill(0), borderColor: '#00f3ff', fill: false, tension: 0.4 }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { display: false } } }
+        });
+
+        setInterval(() => {
+            chart.data.datasets[0].data.shift();
+            chart.data.datasets[0].data.push(Math.random() * 5);
+            chart.update();
+        }, 1000);
+    </script>
+</body>
+</html>
