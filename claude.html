@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R-07 // Phòng điều khiển Robot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{
+    --bg:#05080a;
+    --panel:#0b1218;
+    --panel2:#0e161d;
+    --border:#16262e;
+    --cyan:#4dd8ff;
+    --cyan-dim:#164450;
+    --amber:#ffb454;
+    --amber-dim:#4a3418;
+    --red:#ff5c6c;
+    --green:#63e6a3;
+    --text:#cfe8ee;
+    --text-dim:#5f7c85;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;overflow:hidden;}
+  body{
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(77,216,255,0.05), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(255,180,84,0.04), transparent 40%);
+  }
+  ::selection{background:var(--cyan);color:#00161c;}
+
+  .app{
+    display:grid;
+    grid-template-columns:300px 1fr 260px;
+    grid-template-rows:56px 1fr 150px;
+    grid-template-areas:
+      "top top top"
+      "left main right"
+      "left bottom right";
+    height:100vh;
+    gap:1px;
+    background:var(--border);
+  }
+  .panel{background:var(--panel);position:relative;overflow:hidden;}
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    grid-area:top;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 18px;
+    background:var(--panel2);
+    border-bottom:1px solid var(--border);
+  }
+  .brand{
+    font-family:'Orbitron',sans-serif;font-weight:700;font-size:15px;letter-spacing:2px;color:var(--cyan);
+    display:flex;align-items:center;gap:10px;
+  }
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .status-row{display:flex;gap:26px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;}
+  .status-row b{color:var(--text);font-weight:400;}
+  .status-row .ok{color:var(--green);}
+
+  /* ---------- LEFT: CONSOLE ---------- */
+  .left{grid-area:left;display:flex;flex-direction:column;padding:16px;gap:14px;}
+  .section-label{
+    font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:2px;color:var(--cyan);
+    display:flex;align-items:center;gap:8px;margin-bottom:8px;
+  }
+  .section-label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--cyan-dim),transparent);}
+
+  .cmd-form{display:flex;gap:6px;}
+  .cmd-form input{
+    flex:1;background:#000c10;border:1px solid var(--border);color:var(--text);
+    font-family:'Share Tech Mono',monospace;font-size:13px;padding:10px 10px;border-radius:3px;outline:none;
+  }
+  .cmd-form input:focus{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan-dim);}
+  .cmd-form input::placeholder{color:var(--text-dim);}
+  .btn{
+    border:1px solid var(--border);background:var(--panel2);color:var(--text);
+    font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:1px;cursor:pointer;
+    border-radius:3px;transition:.15s;
+  }
+  .btn:hover{border-color:var(--cyan);color:var(--cyan);}
+  .btn:active{transform:scale(.96);}
+  .btn-send{padding:0 14px;font-size:13px;}
+
+  .mic-btn{
+    width:100%;padding:12px;margin-top:10px;font-family:'Orbitron',sans-serif;font-size:12px;
+    letter-spacing:2px;display:flex;align-items:center;justify-content:center;gap:10px;
+    border:1px solid var(--cyan-dim);background:linear-gradient(180deg,#0d1a20,#081217);color:var(--cyan);
+  }
+  .mic-btn.listening{
+    border-color:var(--red);color:var(--red);
+    animation:micGlow 1.1s infinite;
+  }
+  @keyframes micGlow{0%,100%{box-shadow:0 0 6px rgba(255,92,108,0.15);}50%{box-shadow:0 0 18px rgba(255,92,108,0.55);}}
+  .mic-btn .ring{width:9px;height:9px;border-radius:50%;background:var(--cyan);}
+  .mic-btn.listening .ring{background:var(--red);}
+  .mic-hint{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);margin-top:6px;min-height:14px;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{
+    padding:7px 10px;font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:600;
+    border:1px solid var(--border);background:var(--panel2);color:var(--text-dim);
+    border-radius:20px;cursor:pointer;transition:.15s;
+  }
+  .chip:hover{color:var(--cyan);border-color:var(--cyan);}
+
+  .log{
+    flex:1;overflow-y:auto;background:#000a0d;border:1px solid var(--border);border-radius:3px;
+    padding:10px;font-family:'Share Tech Mono',monospace;font-size:11.5px;line-height:1.7;
+    display:flex;flex-direction:column-reverse;
+  }
+  .log::-webkit-scrollbar{width:6px;}
+  .log::-webkit-scrollbar-thumb{background:var(--border);}
+  .log-entry{color:var(--text-dim);}
+  .log-entry .t{color:#3d5760;margin-right:6px;}
+  .log-entry.cmd{color:var(--cyan);}
+  .log-entry.ok{color:var(--green);}
+  .log-entry.warn{color:var(--amber);}
+  .log-entry.err{color:var(--red);}
+
+  /* ---------- MAIN VIEWPORT ---------- */
+  .main{grid-area:main;position:relative;}
+  #scene{width:100%;height:100%;display:block;cursor:grab;}
+  #scene:active{cursor:grabbing;}
+  .hud-corner{position:absolute;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1px;}
+  .hud-tl{top:12px;left:14px;}
+  .hud-tr{top:12px;right:14px;text-align:right;}
+  .hud-bl{bottom:12px;left:14px;}
+  .hud-br{bottom:12px;right:14px;text-align:right;}
+  .hud-title{font-family:'Orbitron',sans-serif;color:var(--cyan);font-size:12px;letter-spacing:2px;margin-bottom:3px;}
+  .crosshair{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:22px;height:22px;pointer-events:none;opacity:.25;
+  }
+  .crosshair::before,.crosshair::after{content:"";position:absolute;background:var(--cyan);}
+  .crosshair::before{width:100%;height:1px;top:50%;}
+  .crosshair::after{height:100%;width:1px;left:50%;}
+  .state-pill{
+    position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    background:rgba(11,18,24,0.85);border:1px solid var(--cyan-dim);border-radius:20px;
+    padding:6px 18px;font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;color:var(--cyan);
+  }
+
+  /* ---------- RIGHT: TELEMETRY ---------- */
+  .right{grid-area:right;padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;}
+  .joint-grid{display:flex;flex-direction:column;gap:7px;}
+  .joint-row{
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);
+    background:var(--panel2);padding:6px 9px;border-radius:3px;border:1px solid var(--border);
+  }
+  .joint-row .val{color:var(--cyan);}
+  .bar-wrap{width:80px;height:4px;background:#0a1216;border-radius:2px;overflow:hidden;margin-left:8px;}
+  .bar{height:100%;background:var(--cyan);width:0%;transition:width .1s linear;}
+
+  .stat-block{display:flex;flex-direction:column;gap:4px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);}
+  .stat-block .row{display:flex;justify-content:space-between;}
+  .stat-block .row span:last-child{color:var(--text);}
+
+  /* ---------- BOTTOM: QUICK ACTIONS ---------- */
+  .bottom{grid-area:bottom;display:flex;align-items:center;gap:10px;padding:0 16px;flex-wrap:wrap;background:var(--panel2);}
+  .action-btn{
+    padding:10px 16px;font-family:'Orbitron',sans-serif;font-size:10.5px;letter-spacing:1.5px;
+    border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:3px;
+  }
+  .action-btn.primary{border-color:var(--cyan-dim);color:var(--cyan);}
+  .action-btn.warn{border-color:var(--amber-dim);color:var(--amber);}
+  .action-btn.stop{border-color:#4a1c22;color:var(--red);}
+  .action-btn:hover{filter:brightness(1.3);}
+
+  ::-webkit-scrollbar{width:7px;height:7px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="topbar panel">
+    <div class="brand"><span class="dot"></span>R-07 CONTROL ROOM</div>
+    <div class="status-row">
+      <div>LINK: <b class="ok">ỔN ĐỊNH</b></div>
+      <div>PIN: <b id="battery">100%</b></div>
+      <div>UPTIME: <b id="uptime">00:00:00</b></div>
+      <div id="clock">--:--:--</div>
+    </div>
+  </div>
+
+  <div class="left panel">
+    <div>
+      <div class="section-label">LỆNH GÕ PHÍM</div>
+      <form class="cmd-form" id="cmdForm" autocomplete="off">
+        <input id="cmdInput" type="text" placeholder="vd: đi tới, nhảy, nhào lộn..." />
+        <button class="btn btn-send" type="submit">GỬI</button>
+      </form>
+      <button class="mic-btn" id="micBtn"><span class="ring"></span><span id="micLabel">GIỌNG NÓI</span></button>
+      <div class="mic-hint" id="micHint">Nhấn để ra lệnh bằng giọng nói (Tiếng Việt)</div>
+    </div>
+
+    <div>
+      <div class="section-label">LỆNH NHANH</div>
+      <div class="chips" id="chips">
+        <div class="chip" data-cmd="đi tới">Đi tới</div>
+        <div class="chip" data-cmd="đi lui">Đi lui</div>
+        <div class="chip" data-cmd="quay trái">Quay trái</div>
+        <div class="chip" data-cmd="quay phải">Quay phải</div>
+        <div class="chip" data-cmd="nhảy">Nhảy</div>
+        <div class="chip" data-cmd="nhào lộn">Nhào lộn</div>
+        <div class="chip" data-cmd="vẫy tay">Vẫy tay</div>
+        <div class="chip" data-cmd="nhảy múa">Nhảy múa</div>
+        <div class="chip" data-cmd="dừng lại">Dừng lại</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;flex:1;min-height:0;">
+      <div class="section-label">NHẬT KÝ HỆ THỐNG</div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <div class="main panel">
+    <canvas id="scene"></canvas>
+    <div class="state-pill">TRẠNG THÁI: <span id="stateLabel">ĐỨNG YÊN</span></div>
+    <div class="hud-corner hud-tl">
+      <div class="hud-title">CAM_01 // SÀN CHÍNH</div>
+      GÓC NHÌN: KÉO CHUỘT ĐỂ XOAY · CUỘN ĐỂ ZOOM
+    </div>
+    <div class="hud-corner hud-tr">
+      VỊ TRÍ<br>
+      X <span id="posX">0.00</span> &nbsp; Z <span id="posZ">0.00</span>
+    </div>
+    <div class="hud-corner hud-bl">HƯỚNG: <span id="heading">0°</span></div>
+    <div class="hud-corner hud-br">R-07 · HUMANOID UNIT · FIRMWARE 4.2</div>
+    <div class="crosshair"></div>
+  </div>
+
+  <div class="right panel">
+    <div class="section-label">GÓC KHỚP (°)</div>
+    <div class="joint-grid" id="jointGrid"></div>
+
+    <div class="section-label" style="margin-top:6px;">THÔNG SỐ</div>
+    <div class="stat-block">
+      <div class="row"><span>Tốc độ di chuyển</span><span id="statSpeed">0.0 m/s</span></div>
+      <div class="row"><span>Số lệnh đã nhận</span><span id="statCount">0</span></div>
+      <div class="row"><span>Lệnh gần nhất</span><span id="statLast">—</span></div>
+      <div class="row"><span>Chế độ nhập</span><span id="statMode">Bàn phím</span></div>
+    </div>
+  </div>
+
+  <div class="bottom panel">
+    <button class="action-btn primary" data-cmd="đi tới">▲ TIẾN</button>
+    <button class="action-btn primary" data-cmd="đi lui">▼ LÙI</button>
+    <button class="action-btn primary" data-cmd="quay trái">◀ TRÁI</button>
+    <button class="action-btn primary" data-cmd="quay phải">▶ PHẢI</button>
+    <button class="action-btn warn" data-cmd="nhảy">⤒ NHẢY</button>
+    <button class="action-btn warn" data-cmd="nhào lộn">⟳ NHÀO LỘN</button>
+    <button class="action-btn warn" data-cmd="vẫy tay">✋ VẪY TAY</button>
+    <button class="action-btn warn" data-cmd="nhảy múa">♪ NHẢY MÚA</button>
+    <button class="action-btn stop" data-cmd="dừng lại">■ DỪNG KHẨN</button>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   ROBOT CONTROL ROOM — 3D scene, procedural humanoid, command
+   parser (text + Vietnamese voice), telemetry HUD.
+   ============================================================ */
+
+/* ---------- Boot / clock / uptime ---------- */
+const bootTime = Date.now();
+function pad(n){return n.toString().padStart(2,'0');}
+setInterval(()=>{
+  const now = new Date();
+  document.getElementById('clock').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const up = Math.floor((Date.now()-bootTime)/1000);
+  document.getElementById('uptime').textContent = `${pad(Math.floor(up/3600))}:${pad(Math.floor(up/60)%60)}:${pad(up%60)}`;
+  const batt = Math.max(62, 100 - Math.floor(up/9));
+  document.getElementById('battery').textContent = batt+'%';
+},1000);
+
+/* ---------- Logging ---------- */
+const logEl = document.getElementById('log');
+function log(msg, type=''){
+  const now = new Date();
+  const row = document.createElement('div');
+  row.className = 'log-entry '+type;
+  row.innerHTML = `<span class="t">${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}</span>${msg}`;
+  logEl.prepend(row);
+}
+log('Hệ thống khởi động hoàn tất.','ok');
+log('Robot R-07 sẵn sàng nhận lệnh.','ok');
+
+/* ============================================================
+   THREE.JS SCENE
+   ============================================================ */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04070a);
+scene.fog = new THREE.Fog(0x04070a, 9, 22);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+
+/* --- simple orbit controls (no external dependency) --- */
+const orbit = { theta: 0.7, phi: 1.1, radius: 7.2, target: new THREE.Vector3(0,1,0) };
+function updateCamera(){
+  const p = orbit.phi;
+  camera.position.set(
+    orbit.target.x + orbit.radius*Math.sin(p)*Math.sin(orbit.theta),
+    orbit.target.y + orbit.radius*Math.cos(p),
+    orbit.target.z + orbit.radius*Math.sin(p)*Math.cos(orbit.theta)
+  );
+  camera.lookAt(orbit.target);
+}
+let dragging=false, lastX=0, lastY=0;
+canvas.addEventListener('pointerdown', e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;});
+window.addEventListener('pointerup', ()=>dragging=false);
+window.addEventListener('pointermove', e=>{
+  if(!dragging) return;
+  const dx=e.clientX-lastX, dy=e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY;
+  orbit.theta -= dx*0.006;
+  orbit.phi = Math.min(1.5, Math.max(0.35, orbit.phi - dy*0.006));
+  updateCamera();
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  orbit.radius = Math.min(13, Math.max(3.2, orbit.radius + e.deltaY*0.004));
+  updateCamera();
+},{passive:false});
+
+/* --- lights --- */
+scene.add(new THREE.AmbientLight(0x223744, 1.1));
+const key = new THREE.DirectionalLight(0xbfe9ff, 1.1);
+key.position.set(4,7,3); scene.add(key);
+const rim = new THREE.PointLight(0xff9d4d, 1.2, 14);
+rim.position.set(-4,3,-3); scene.add(rim);
+const cyanPoint = new THREE.PointLight(0x4dd8ff, 1.4, 16);
+cyanPoint.position.set(0,4,4); scene.add(cyanPoint);
+
+/* --- floor / room --- */
+const floorMat = new THREE.MeshStandardMaterial({color:0x0a1319, metalness:0.6, roughness:0.35});
+const floor = new THREE.Mesh(new THREE.CircleGeometry(6.4,48), floorMat);
+floor.rotation.x = -Math.PI/2; scene.add(floor);
+
+const grid = new THREE.GridHelper(12.8, 32, 0x1d4d5c, 0x0f2530);
+grid.position.y = 0.001; scene.add(grid);
+
+const ringGeo = new THREE.RingGeometry(3.35,3.4,64);
+const ringMat = new THREE.MeshBasicMaterial({color:0x4dd8ff, transparent:true, opacity:0.5, side:THREE.DoubleSide});
+const bound = new THREE.Mesh(ringGeo, ringMat);
+bound.rotation.x = -Math.PI/2; bound.position.y=0.01; scene.add(bound);
+
+// back wall panels for control-room feel
+const wallMat = new THREE.MeshStandardMaterial({color:0x0b141a, metalness:0.3, roughness:0.8});
+const wall = new THREE.Mesh(new THREE.CylinderGeometry(6.4,6.4,4.2,48,1,true,Math.PI*0.15,Math.PI*1.7), wallMat);
+wall.position.y = 2.1; scene.add(wall);
+for(let i=0;i<10;i++){
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05,3.6,0.05), new THREE.MeshBasicMaterial({color: i%3===0?0xffb454:0x1c4a56}));
+  const a = (i/10)*Math.PI*1.7 + Math.PI*0.15;
+  strip.position.set(Math.sin(a)*6.35, 2.1, Math.cos(a)*6.35);
+  scene.add(strip);
+}
+
+/* ============================================================
+   PROCEDURAL HUMANOID ROBOT
+   ============================================================ */
+function createRobot(){
+  const bodyMat = new THREE.MeshStandardMaterial({color:0x1c2b33, metalness:0.75, roughness:0.3});
+  const jointMat = new THREE.MeshStandardMaterial({color:0x4dd8ff, emissive:0x0c3540, emissiveIntensity:0.6, metalness:0.4, roughness:0.25});
+  const accentMat = new THREE.MeshStandardMaterial({color:0xffb454, emissive:0x3a2200, metalness:0.5, roughness:0.4});
+  const visorMat = new THREE.MeshBasicMaterial({color:0x9beeff});
+
+  const LU=0.55, LL=0.5, AU=0.42, AL=0.38; // leg-upper, leg-lower, arm-upper, arm-lower
+  const hipY = LU+LL+0.06;
+
+  const root = new THREE.Group();
+
+  const hip = new THREE.Group(); hip.position.y = hipY; root.add(hip);
+  hip.add(new THREE.Mesh(new THREE.BoxGeometry(0.42,0.14,0.24), accentMat));
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.46,0.58,0.28), bodyMat);
+  torso.position.y = 0.36; hip.add(torso);
+  const chestLight = new THREE.Mesh(new THREE.CircleGeometry(0.05,16), new THREE.MeshBasicMaterial({color:0x4dd8ff}));
+  chestLight.position.set(0,0.45,0.145); hip.add(chestLight);
+
+  const headPivot = new THREE.Group(); headPivot.position.y = 0.68; hip.add(headPivot);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.26,0.24,0.26), bodyMat);
+  head.position.y = 0.13; headPivot.add(head);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.06,0.02), visorMat);
+  visor.position.set(0,0.15,0.135); headPivot.add(visor);
+
+  function buildArm(sign){
+    const shoulder = new THREE.Group(); shoulder.position.set(sign*0.3,0.58,0); hip.add(shoulder);
+    shoulder.add(new THREE.Mesh(new THREE.SphereGeometry(0.07,12,12), jointMat));
+    const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.13,AU,0.13), bodyMat);
+    upperArm.position.y = -AU/2; shoulder.add(upperArm);
+    const elbow = new THREE.Group(); elbow.position.y = -AU; shoulder.add(elbow);
+    elbow.add(new THREE.Mesh(new THREE.SphereGeometry(0.055,12,12), jointMat));
+    const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.11,AL,0.11), bodyMat);
+    forearm.position.y = -AL/2; elbow.add(forearm);
+    return {shoulder, elbow};
+  }
+  const armL = buildArm(-1), armR = buildArm(1);
+
+  function buildLeg(sign){
+    const hipJ = new THREE.Group(); hipJ.position.set(sign*0.14,0,0); hip.add(hipJ);
+    hipJ.add(new THREE.Mesh(new THREE.SphereGeometry(0.08,12,12), jointMat));
+    const upperLeg = new THREE.Mesh(new THREE.BoxGeometry(0.16,LU,0.16), bodyMat);
+    upperLeg.position.y = -LU/2; hipJ.add(upperLeg);
+    const knee = new THREE.Group(); knee.position.y = -LU; hipJ.add(knee);
+    knee.add(new THREE.Mesh(new THREE.SphereGeometry(0.065,12,12), jointMat));
+    const lowerLeg = new THREE.Mesh(new THREE.BoxGeometry(0.13,LL,0.13), bodyMat);
+    lowerLeg.position.y = -LL/2; knee.add(lowerLeg);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.17,0.07,0.24), accentMat);
+    foot.position.set(0,-LL-0.035,0.05); knee.add(foot);
+    return {hipJ, knee};
+  }
+  const legL = buildLeg(-1), legR = buildLeg(1);
+
+  scene.add(root);
+  return {root, hip, headPivot, armL, armR, legL, legR, hipY};
+}
+const bot = createRobot();
+
+/* ============================================================
+   STATE MACHINE
+   ============================================================ */
+const FLOOR_LIMIT = 3.2;
+const state = {
+  moveDir: 0,      // -1,0,1
+  turnDir: 0,      // -1,0,1
+  action: null,    // 'jump' | 'flip' | 'wave' | 'dance' | null
+  actionT: 0,
+  actionDur: 0,
+  walkPhase: 0,
+  label: 'ĐỨNG YÊN',
+};
+
+function setLabel(l){ state.label = l; document.getElementById('stateLabel').textContent = l; }
+
+function stopAll(){
+  state.moveDir = 0; state.turnDir = 0; state.action = null; state.actionT = 0;
+  // đưa robot về tư thế trung tính ngay lập tức, tránh kẹt tư thế
+  // nếu lệnh dừng đến giữa lúc đang nhảy / nhào lộn / vẫy tay / nhảy múa
+  bot.root.position.y = 0;
+  bot.hip.rotation.x = 0;
+  bot.armL.shoulder.rotation.set(0,0,0);
+  bot.armR.shoulder.rotation.set(0,0,0);
+  bot.legL.knee.rotation.x = 0; bot.legR.knee.rotation.x = 0;
+  bot.legL.hipJ.rotation.x = 0; bot.legR.hipJ.rotation.x = 0;
+  setLabel('ĐỨNG YÊN');
+}
+
+const clock = new THREE.Clock();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  // idle breathing / head look
+  bot.hip.position.y = bot.hipY + Math.sin(t*1.6)*0.008;
+  bot.headPivot.rotation.y = Math.sin(t*0.35)*0.12;
+
+  // turning
+  if(state.turnDir !== 0){
+    bot.root.rotation.y += state.turnDir * 1.4 * dt;
+  }
+
+  // walking / moving
+  if(state.moveDir !== 0){
+    state.walkPhase += dt * 7.5;
+    const speed = 1.05;
+    let nx = bot.root.position.x + Math.sin(bot.root.rotation.y)*state.moveDir*speed*dt;
+    let nz = bot.root.position.z + Math.cos(bot.root.rotation.y)*state.moveDir*speed*dt;
+    const dist = Math.sqrt(nx*nx+nz*nz);
+    if(dist > FLOOR_LIMIT){
+      log('⚠ Chạm vành an toàn — tự động dừng.','warn');
+      state.moveDir = 0; setLabel('ĐỨNG YÊN');
+    } else {
+      bot.root.position.x = nx; bot.root.position.z = nz;
+    }
+    const s = Math.sin(state.walkPhase);
+    bot.legL.hipJ.rotation.x = s*0.55;
+    bot.legR.hipJ.rotation.x = -s*0.55;
+    bot.legL.knee.rotation.x = Math.max(0,-s)*0.9;
+    bot.legR.knee.rotation.x = Math.max(0,s)*0.9;
+    bot.armL.shoulder.rotation.x = -s*0.45;
+    bot.armR.shoulder.rotation.x = s*0.45;
+  } else if(!state.action){
+    bot.legL.hipJ.rotation.x *= 0.85; bot.legR.hipJ.rotation.x *= 0.85;
+    bot.legL.knee.rotation.x *= 0.85; bot.legR.knee.rotation.x *= 0.85;
+    bot.armL.shoulder.rotation.x *= 0.85; bot.armR.shoulder.rotation.x *= 0.85;
+  }
+
+  // one-shot / looping actions
+  if(state.action){
+    state.actionT += dt;
+    const p = Math.min(1, state.actionT / state.actionDur);
+    if(state.action === 'jump'){
+      const arc = Math.sin(p*Math.PI);
+      bot.root.position.y = arc*0.55;
+      bot.legL.knee.rotation.x = arc*0.7; bot.legR.knee.rotation.x = arc*0.7;
+      bot.armL.shoulder.rotation.x = -arc*1.0; bot.armR.shoulder.rotation.x = -arc*1.0;
+      if(p>=1){ bot.root.position.y=0; state.action=null; setLabel('ĐỨNG YÊN'); }
+    } else if(state.action === 'flip'){
+      const arc = Math.sin(p*Math.PI);
+      bot.root.position.y = arc*0.7;
+      bot.hip.rotation.x = p*Math.PI*2;
+      bot.legL.knee.rotation.x = 1.6; bot.legR.knee.rotation.x = 1.6;
+      if(p>=1){ bot.root.position.y=0; bot.hip.rotation.x=0; state.action=null; setLabel('ĐỨNG YÊN'); }
+    } else if(state.action === 'wave'){
+      bot.armR.shoulder.rotation.x = -1.3;
+      bot.armR.shoulder.rotation.z = Math.sin(t*9)*0.35 - 0.15;
+      if(p>=1){ bot.armR.shoulder.rotation.x=0; bot.armR.shoulder.rotation.z=0; state.action=null; setLabel('ĐỨNG YÊN'); }
+    } else if(state.action === 'dance'){
+      bot.root.rotation.y += 2.2*dt;
+      bot.hip.position.y = bot.hipY + Math.abs(Math.sin(t*6))*0.12;
+      bot.armL.shoulder.rotation.z = Math.sin(t*7)*0.5;
+      bot.armR.shoulder.rotation.z = -Math.sin(t*7)*0.5;
+      bot.armL.shoulder.rotation.x = -0.6; bot.armR.shoulder.rotation.x = -0.6;
+      bot.legL.knee.rotation.x = Math.abs(Math.sin(t*7))*0.5;
+      bot.legR.knee.rotation.x = Math.abs(Math.cos(t*7))*0.5;
+      if(p>=1){ bot.armL.shoulder.rotation.set(0,0,0); bot.armR.shoulder.rotation.set(0,0,0); state.action=null; setLabel('ĐỨNG YÊN'); }
+    }
+  }
+
+  updateCamera();
+  updateHUD();
+  renderer.render(scene, camera);
+}
+updateCamera();
+animate();
+
+/* ---------- resize ---------- */
+function resize(){
+  const r = canvas.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ============================================================
+   TELEMETRY HUD
+   ============================================================ */
+const jointDefs = [
+  {label:'Vai trái', get:()=>bot.armL.shoulder.rotation.x},
+  {label:'Vai phải', get:()=>bot.armR.shoulder.rotation.x},
+  {label:'Khuỷu trái', get:()=>bot.armL.elbow.rotation.x},
+  {label:'Khuỷu phải', get:()=>bot.armR.elbow.rotation.x},
+  {label:'Hông trái', get:()=>bot.legL.hipJ.rotation.x},
+  {label:'Hông phải', get:()=>bot.legR.hipJ.rotation.x},
+  {label:'Gối trái', get:()=>bot.legL.knee.rotation.x},
+  {label:'Gối phải', get:()=>bot.legR.knee.rotation.x},
+];
+const jointGrid = document.getElementById('jointGrid');
+jointDefs.forEach(j=>{
+  const row = document.createElement('div');
+  row.className='joint-row';
+  row.innerHTML = `<span>${j.label}</span><span style="display:flex;align-items:center;">
+      <span class="val" data-val>0°</span>
+      <span class="bar-wrap"><span class="bar" data-bar></span></span>
+    </span>`;
+  jointGrid.appendChild(row);
+  j._val = row.querySelector('[data-val]');
+  j._bar = row.querySelector('[data-bar]');
+});
+
+function updateHUD(){
+  jointDefs.forEach(j=>{
+    const deg = (j.get()*180/Math.PI);
+    j._val.textContent = deg.toFixed(0)+'°';
+    j._bar.style.width = Math.min(100, Math.abs(deg)/90*100)+'%';
+  });
+  document.getElementById('posX').textContent = bot.root.position.x.toFixed(2);
+  document.getElementById('posZ').textContent = bot.root.position.z.toFixed(2);
+  let deg = (bot.root.rotation.y*180/Math.PI)%360; if(deg<0) deg+=360;
+  document.getElementById('heading').textContent = deg.toFixed(0)+'°';
+  document.getElementById('statSpeed').textContent = (state.moveDir!==0 ? '1.05 m/s' : '0.0 m/s');
+}
+
+/* ============================================================
+   COMMAND PARSER  (text + voice, Vietnamese-first)
+   ============================================================ */
+let cmdCount = 0;
+
+function normalize(str){
+  return str.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // strip diacritics
+    .replace(/đ/g,'d').trim();
+}
+
+const COMMANDS = [
+  { keys:['nhay mua','dance','khieu vu'], run: ()=>{ state.action='dance'; state.actionT=0; state.actionDur=3.2; setLabel('NHẢY MÚA'); return 'Bắt đầu điệu nhảy.'; } },
+  { keys:['nhao lon','lon nhao','backflip','flip','lon vong'], run: ()=>{ if(state.action) return null; state.action='flip'; state.actionT=0; state.actionDur=1.1; setLabel('NHÀO LỘN'); return 'Thực hiện cú nhào lộn.'; } },
+  { keys:['nhay len','nhay','jump'], run: ()=>{ if(state.action) return null; state.action='jump'; state.actionT=0; state.actionDur=0.75; setLabel('NHẢY'); return 'Nhảy lên.'; } },
+  { keys:['vay tay','chao','wave'], run: ()=>{ state.action='wave'; state.actionT=0; state.actionDur=2.4; setLabel('VẪY TAY'); return 'Vẫy tay chào.'; } },
+  { keys:['di toi','tien len','tien','di thang','forward','move forward'], run: ()=>{ state.moveDir=1; setLabel('ĐI TỚI'); return 'Di chuyển về phía trước.'; } },
+  { keys:['di lui','lui lai','lui','backward','move backward'], run: ()=>{ state.moveDir=-1; setLabel('ĐI LÙI'); return 'Di chuyển lùi lại.'; } },
+  { keys:['quay trai','re trai','turn left'], run: ()=>{ state.turnDir=-1; setLabel('QUAY TRÁI'); return 'Xoay sang trái.'; } },
+  { keys:['quay phai','re phai','turn right'], run: ()=>{ state.turnDir=1; setLabel('QUAY PHẢI'); return 'Xoay sang phải.'; } },
+  { keys:['dung lai','dung khan','dung yen','stop','halt'], run: ()=>{ stopAll(); return 'Đã dừng toàn bộ chuyển động.'; } },
+];
+
+function speak(text){
+  if(!('speechSynthesis' in window)) return;
+  try{
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'vi-VN'; u.rate = 1.05; u.pitch = 0.9; u.volume = 0.7;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+function executeCommand(raw, source){
+  const norm = normalize(raw);
+  if(!norm) return;
+  cmdCount++;
+  document.getElementById('statCount').textContent = cmdCount;
+  document.getElementById('statLast').textContent = raw;
+  log(`${source==='voice'?'🎙':'⌨'} "${raw}"`, 'cmd');
+
+  for(const c of COMMANDS){
+    if(c.keys.some(k=>norm.includes(k))){
+      const result = c.run();
+      if(result){
+        log('✔ '+result, 'ok');
+        speak(result);
+      } else {
+        log('✖ Robot đang thực hiện động tác khác, vui lòng chờ.', 'warn');
+      }
+      return;
+    }
+  }
+  log('✖ Không nhận diện được lệnh. Thử: "đi tới", "nhảy", "nhào lộn", "vẫy tay", "dừng lại"...', 'err');
+}
+
+/* ---------- text input ---------- */
+document.getElementById('cmdForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const input = document.getElementById('cmdInput');
+  if(input.value.trim()){
+    document.getElementById('statMode').textContent = 'Bàn phím';
+    executeCommand(input.value.trim(), 'text');
+    input.value='';
+  }
+});
+
+/* ---------- quick chips + bottom action buttons ---------- */
+document.querySelectorAll('[data-cmd]').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    document.getElementById('statMode').textContent = 'Bàn phím';
+    executeCommand(el.dataset.cmd, 'text');
+  });
+});
+
+/* ---------- voice recognition ---------- */
+const micBtn = document.getElementById('micBtn');
+const micLabel = document.getElementById('micLabel');
+const micHint = document.getElementById('micHint');
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null, listening = false;
+
+if(SpeechRecognition){
+  recognition = new SpeechRecognition();
+  recognition.lang = 'vi-VN';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onstart = ()=>{ listening = true; micBtn.classList.add('listening'); micLabel.textContent='ĐANG NGHE...'; micHint.textContent='Hãy nói lệnh của bạn.'; };
+  recognition.onend = ()=>{
+    listening = false; micBtn.classList.remove('listening'); micLabel.textContent='GIỌNG NÓI'; micHint.textContent='Nhấn để ra lệnh bằng giọng nói (Tiếng Việt)';
+  };
+  recognition.onerror = (e)=>{
+    log('✖ Lỗi nhận diện giọng nói: '+e.error, 'err');
+  };
+  recognition.onresult = (e)=>{
+    let finalText = '';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) finalText += e.results[i][0].transcript;
+      else micHint.textContent = '…'+e.results[i][0].transcript;
+    }
+    if(finalText.trim()){
+      document.getElementById('statMode').textContent = 'Giọng nói';
+      executeCommand(finalText.trim(), 'voice');
+    }
+  };
+
+  micBtn.addEventListener('click', ()=>{
+    if(listening){ recognition.stop(); }
+    else {
+      try{ recognition.start(); }catch(e){}
+    }
+  });
+} else {
+  micLabel.textContent = 'KHÔNG HỖ TRỢ';
+  micHint.textContent = 'Trình duyệt này không hỗ trợ nhận diện giọng nói. Hãy dùng Chrome trên máy tính.';
+  micBtn.style.opacity = 0.5;
+  micBtn.style.cursor = 'not-allowed';
+}
+
+/* keyboard shortcut: space toggles mic when not typing */
+window.addEventListener('keydown', e=>{
+  if(e.code==='Space' && document.activeElement.id !== 'cmdInput'){
+    e.preventDefault();
+    if(recognition) micBtn.click();
+  }
+});
+</script>
+</body>
+</html>
