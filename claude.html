@@ -6,7 +6,6 @@
 <title>R-07 // Phòng điều khiển Robot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
   :root{
     --bg:#05080a;
@@ -140,6 +139,27 @@
   .crosshair::before,.crosshair::after{content:"";position:absolute;background:var(--cyan);}
   .crosshair::before{width:100%;height:1px;top:50%;}
   .crosshair::after{height:100%;width:1px;left:50%;}
+
+  /* ---------- viewport loading / error overlay ---------- */
+  .viewport-status{
+    position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;background:#04070a;
+    font-family:'Rajdhani',sans-serif;text-align:center;padding:20px;
+  }
+  .viewport-status.hidden{display:none;}
+  .spinner{
+    width:34px;height:34px;border:3px solid var(--cyan-dim);border-top-color:var(--cyan);
+    border-radius:50%;animation:spin .9s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .viewport-status .vs-title{font-family:'Orbitron',sans-serif;font-size:13px;letter-spacing:2px;color:var(--cyan);}
+  .viewport-status.is-error .vs-title{color:var(--red);}
+  .viewport-status .vs-msg{font-family:'Share Tech Mono',monospace;font-size:11.5px;color:var(--text-dim);max-width:360px;line-height:1.6;}
+  .retry-btn{
+    margin-top:4px;padding:9px 20px;font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;
+    border:1px solid var(--cyan-dim);background:var(--panel2);color:var(--cyan);border-radius:3px;cursor:pointer;
+  }
+  .retry-btn:hover{border-color:var(--cyan);filter:brightness(1.2);}
   .state-pill{
     position:absolute;top:12px;left:50%;transform:translateX(-50%);
     background:rgba(11,18,24,0.85);border:1px solid var(--cyan-dim);border-radius:20px;
@@ -226,6 +246,12 @@
 
   <div class="main panel">
     <canvas id="scene"></canvas>
+    <div class="viewport-status" id="viewportStatus">
+      <div class="spinner" id="vsSpinner"></div>
+      <div class="vs-title" id="vsTitle">ĐANG TẢI BỘ DỰNG HÌNH 3D...</div>
+      <div class="vs-msg" id="vsMsg">Kết nối đến máy chủ đồ họa, vui lòng đợi trong giây lát.</div>
+      <button class="retry-btn hidden" id="vsRetry" onclick="location.reload()">TẢI LẠI TRANG</button>
+    </div>
     <div class="state-pill">TRẠNG THÁI: <span id="stateLabel">ĐỨNG YÊN</span></div>
     <div class="hud-corner hud-tl">
       <div class="hud-title">CAM_01 // SÀN CHÍNH</div>
@@ -295,7 +321,69 @@ function log(msg, type=''){
   logEl.prepend(row);
 }
 log('Hệ thống khởi động hoàn tất.','ok');
-log('Robot R-07 sẵn sàng nhận lệnh.','ok');
+
+/* Chặn submit mặc định (gây reload trang) trong lúc chờ Three.js tải xong;
+   sau khi initThreeApp() chạy, một listener xử lý lệnh thật sẽ được gắn thêm. */
+document.getElementById('cmdForm').addEventListener('submit', e=>e.preventDefault());
+
+/* ============================================================
+   TẢI THREE.JS — thử lần lượt nhiều CDN để tránh 1 điểm lỗi duy nhất.
+   Nếu tất cả đều thất bại (mất mạng, CDN bị chặn...), hiển thị rõ
+   ràng cho người dùng thay vì để khung nhìn 3D đen im lặng.
+   ============================================================ */
+const THREE_SOURCES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
+  'https://unpkg.com/three@0.128.0/build/three.min.js',
+];
+
+function loadScriptOnce(src, timeoutMs=9000){
+  return new Promise((resolve, reject)=>{
+    const el = document.createElement('script');
+    el.src = src;
+    const timer = setTimeout(()=>{ el.remove(); reject(new Error('timeout: '+src)); }, timeoutMs);
+    el.onload = ()=>{ clearTimeout(timer); resolve(); };
+    el.onerror = ()=>{ clearTimeout(timer); el.remove(); reject(new Error('load fail: '+src)); };
+    document.head.appendChild(el);
+  });
+}
+
+const vsTitle = document.getElementById('vsTitle');
+const vsMsg = document.getElementById('vsMsg');
+const vsSpinner = document.getElementById('vsSpinner');
+const vsRetry = document.getElementById('vsRetry');
+const viewportStatus = document.getElementById('viewportStatus');
+
+async function bootThree(){
+  for(let i=0;i<THREE_SOURCES.length;i++){
+    try{
+      vsMsg.textContent = `Đang kết nối máy chủ đồ họa (${i+1}/${THREE_SOURCES.length})...`;
+      await loadScriptOnce(THREE_SOURCES[i]);
+      if(window.THREE){
+        log('Đã tải thư viện dựng hình 3D thành công.','ok');
+        log('Robot R-07 sẵn sàng nhận lệnh.','ok');
+        initThreeApp();
+        viewportStatus.classList.add('hidden');
+        return;
+      }
+    }catch(err){
+      log('⚠ Không tải được nguồn đồ họa #'+(i+1)+', đang thử nguồn khác...','warn');
+    }
+  }
+  // tất cả nguồn đều thất bại
+  viewportStatus.classList.add('is-error');
+  vsSpinner.classList.add('hidden');
+  vsTitle.textContent = 'KHÔNG THỂ TẢI BỘ DỰNG HÌNH 3D';
+  vsMsg.textContent = 'Không có kết nối mạng tới các máy chủ thư viện đồ họa, hoặc mạng của bạn đang chặn CDN. Bảng điều khiển bên trái vẫn ghi nhận lệnh, nhưng robot sẽ không hiển thị cho tới khi tải lại trang với kết nối mạng ổn định.';
+  vsRetry.classList.remove('hidden');
+  log('✖ Không thể tải thư viện đồ họa 3D sau nhiều lần thử. Kiểm tra kết nối mạng và tải lại trang.','err');
+}
+
+/* ============================================================
+   Toàn bộ phần dựng scene / robot / điều khiển chỉ khởi tạo
+   SAU KHI Three.js đã tải thành công (gọi từ bootThree()).
+   ============================================================ */
+function initThreeApp(){
 
 /* ============================================================
    THREE.JS SCENE
@@ -717,6 +805,11 @@ window.addEventListener('keydown', e=>{
     if(recognition) micBtn.click();
   }
 });
+
+} // end initThreeApp()
+
+/* ---------- bắt đầu tải Three.js ---------- */
+bootThree();
 </script>
 </body>
 </html>
