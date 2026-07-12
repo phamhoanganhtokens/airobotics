@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybernetic Robotic Interface | AI Robotics</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: rgba(10, 14, 39, 0.95);
+            --panel-bg: rgba(16, 20, 45, 0.8);
+            --accent-cyan: #00f2ff;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --accent-purple: #a855f7;
+            --neon-glow: 0 0 10px rgba(0, 242, 255, 0.5), 0 0 20px rgba(0, 242, 255, 0.2);
+        }
+
+        body {
+            background-color: #050816;
+            background-image: 
+                linear-gradient(rgba(0, 242, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            color: #e2e8f0;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: hidden;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        .neon-border {
+            border: 1px solid var(--accent-cyan);
+            box-shadow: var(--neon-glow);
+            transition: all 0.3s ease;
+        }
+
+        .neon-border:hover {
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.8), 0 0 30px rgba(0, 242, 255, 0.4);
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 4px;
+            padding: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animations */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes spin-reverse {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        @keyframes floaty {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-20px) scale(1.05); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        .animate-spin-slow { animation: spin 10s linear infinite; }
+        .animate-spin-reverse { animation: spin-reverse 15s linear infinite; }
+        .animate-floaty { animation: floaty 4s ease-in-out infinite; }
+        .animate-pulse-fast { animation: pulse 1s ease-in-out infinite; }
+
+        /* Robot Display Components */
+        .robot-container {
+            height: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .ring {
+            position: absolute;
+            border: 2px dashed var(--accent-cyan);
+            border-radius: 50%;
+            opacity: 0.3;
+        }
+        .ring-1 { width: 300px; height: 300px; animation: spin 20s linear infinite; }
+        .ring-2 { width: 250px; height: 250px; animation: spin-reverse 15s linear infinite; border-style: dotted; }
+        .ring-3 { width: 200px; height: 200px; animation: spin 10s linear infinite; border-style: double; }
+
+        .scanline-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent, rgba(0, 242, 255, 0.1), transparent);
+            pointer-events: none;
+            animation: scanline 4s linear infinite;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        ::-webkit-scrollbar-thumb { background: var(--accent-cyan); box-shadow: var(--neon-glow); }
+
+        .btn-start { background: var(--accent-green); color: black; font-weight: bold; }
+        .btn-stop { background: var(--accent-red); color: white; font-weight: bold; }
+        .btn-reset { background: var(--accent-blue); color: white; font-weight: bold; }
+        .btn-config { background: var(--accent-purple); color: white; font-weight: bold; }
+        
+        .action-btn {
+            border: 1px solid transparent;
+            padding: 8px 16px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.1rem;
+            transition: all 0.2s;
+        }
+        .action-btn:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 lg:p-6">
+
+    <!-- HEADER -->
+    <header class="flex flex-wrap items-center justify-between gap-4 mb-6 neon-border panel">
+        <div class="flex items-center gap-3">
+            <svg class="w-8 h-8 text-[#00f2ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            </svg>
+            <h1 class="text-xl font-bold tracking-tighter uppercase italic">Cybernetic <span class="text-cyan-400">Robotics</span> Interface</h1>
+        </div>
+        
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span class="text-xs font-bold text-green-400 uppercase">System Active</span>
+            </div>
+            <div id="clock" class="text-lg font-bold text-cyan-400">18:56:00</div>
+        </div>
+    </header>
+
+    <!-- GRID SYSTEM -->
+    <main class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        
+        <!-- COLUMN 1: METRICS & CONTROLS -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Meters -->
+            <section class="panel neon-border">
+                <h2 class="text-xs font-bold uppercase mb-4 flex items-center gap-2 text-cyan-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    System Load
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-1 uppercase"><span>Power</span><span>84%</span></div>
+                        <div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                            <div class="h-full bg-cyan-400 shadow-[0_0_10px_#00f2ff]" style="width: 84%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-1 uppercase"><span>Synapse Link</span><span>62%</span></div>
+                        <div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                            <div class="h-full bg-purple-500 shadow-[0_0_10px_#a855f7]" style="width: 62%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-1 uppercase"><span>Temp</span><span>38°C</span></div>
+                        <div class="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                            <div class="h-full bg-green-500 shadow-[0_0_10px_#10b981]" style="width: 38%"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Action Grid -->
+            <section class="panel neon-border">
+                <h2 class="text-xs font-bold uppercase mb-4 text-cyan-400">Control Unit</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button class="action-btn btn-start">Start ⚡</button>
+                    <button class="action-btn btn-stop">Stop 🛑</button>
+                    <button class="action-btn btn-reset">Reset 🔄</button>
+                    <button class="action-btn btn-config">Config ⚙️</button>
+                </div>
+            </section>
+
+            <!-- Muscle Tracks -->
+            <section class="panel neon-border">
+                <h2 class="text-xs font-bold uppercase mb-3 text-cyan-400 italic">Muscle Tracks</h2>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                        <div class="text-[10px] uppercase flex-grow">L-ARM Actuator</div>
+                        <div class="text-[10px] text-cyan-200">OK</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse-fast"></div>
+                        <div class="text-[10px] uppercase flex-grow">R-ARM Actuator</div>
+                        <div class="text-[10px] text-cyan-200">SYNC</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 bg-red-400 rounded-full"></div>
+                        <div class="text-[10px] uppercase flex-grow">LEG-HYDRAULIC-01</div>
+                        <div class="text-[10px] text-red-400">WARN</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- COLUMN 2: ROBOT DISPLAY (CENTER) -->
+        <div class="lg:col-span-2 space-y-6">
+            <section class="panel neon-border relative bg-[rgba(10,14,39,0.3)]">
+                <div class="robot-container">
+                    <div class="ring ring-1"></div>
+                    <div class="ring ring-2"></div>
+                    <div class="ring ring-3"></div>
+                    
+                    <!-- Floating Robot Placeholder SVG -->
+                    <div class="relative z-10 animate-floaty">
+                        <svg width="200" height="250" viewBox="0 0 100 120">
+                            <defs>
+                                <filter id="glow">
+                                    <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                    <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                            </defs>
+                            <circle cx="50" cy="30" r="15" fill="#1e293b" stroke="#00f2ff" stroke-width="2" filter="url(#glow)"/> <!-- Head -->
+                            <rect x="35" y="48" width="30" height="40" rx="4" fill="#1e293b" stroke="#00f2ff" stroke-width="2" filter="url(#glow)"/> <!-- Body -->
+                            <line x1="35" y1="55" x2="20" y2="80" stroke="#00f2ff" stroke-width="3" filter="url(#glow)"/> <!-- Left arm -->
+                            <line x1="65" y1="55" x2="80" y2="80" stroke="#00f2ff" stroke-width="3" filter="url(#glow)"/> <!-- Right arm -->
+                            <rect x="40" y="93" width="8" height="20" fill="#1e293b" stroke="#00f2ff" stroke-width="2" filter="url(#glow)"/> <!-- Left leg -->
+                            <rect x="52" y="93" width="8" height="20" fill="#1e293b" stroke="#00f2ff" stroke-width="2" filter="url(#glow)"/> <!-- Right leg -->
+                            <circle cx="50" cy="30" r="2" fill="#00f2ff" class="animate-pulse-fast"/> <!-- Eye -->
+                        </svg>
+                    </div>
+
+                    <!-- Glowing Floor Effect -->
+                    <div class="absolute bottom-10 w-48 h-4 bg-cyan-400 opacity-20 blur-xl rounded-full"></div>
+                </div>
+                
+                <div class="absolute bottom-4 left-4 right-4 flex justify-between uppercase text-[10px] text-cyan-400">
+                    <span>Model: CB-ARC-7</span>
+                    <span>Lat: 37.7749 / Lng: -122.4194</span>
+                </div>
+            </section>
+        </div>
+
+        <!-- COLUMN 3: STATS & LOG -->
+        <div class="lg:col-span-2 space-y-6 flex flex-col h-full">
+            <!-- Real-time Chart -->
+            <section class="panel neon-border flex-grow min-h-[300px]">
+                <h2 class="text-xs font-bold uppercase mb-4 text-cyan-400 italic">Neural Throughput</h2>
+                <div class="w-full h-[220px]">
+                    <canvas id="neuralChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Command Log -->
+            <section class="panel neon-border flex flex-col h-[300px]">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-xs font-bold uppercase text-cyan-400 italic">Command Log</h2>
+                    <div class="text-[8px] px-1 bg-cyan-900 border border-cyan-400">TTY: /DEV/ROBOT_S1</div>
+                </div>
+                <div id="logContent" class="overflow-y-auto text-[10px] space-y-1 flex-grow font-mono bg-black/40 p-2 relative">
+                    <div class="scanline-effect"></div>
+                    <div class="text-gray-500">[0.0001] Initializing kernel...</div>
+                    <div class="text-cyan-400">[0.0042] Loading Cybernetic Interface drivers...</div>
+                    <div class="text-green-400">[0.0156] Secure boot handshaking complete.</div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="mt-6 text-[10px] flex justify-between items-center text-gray-500 uppercase tracking-widest border-t border-gray-800 pt-4">
+        <div>Proprietary System of AI Robotics Corp © 2026</div>
+        <div class="flex gap-4">
+            <span class="hover:text-cyan-400 cursor-pointer">Protocol 7-B</span>
+            <span class="hover:text-cyan-400 cursor-pointer">Manual Overide</span>
+        </div>
+    </footer>
+
+    <script>
+        // Update Clock
+        function updateClock() {
+            const now = new Date();
+            const time = now.toTimeString().split(' ')[0];
+            document.getElementById('clock').textContent = time;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Chart.js Configuration
+        const ctx = document.getElementById('neuralChart').getContext('2d');
+        const neuralChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(12).fill(''),
+                datasets: [{
+                    label: 'Throughput',
+                    data: [12, 19, 3, 5, 2, 3, 15, 25, 20, 18, 30, 45],
+                    borderColor: '#00f2ff',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    fill: true,
+                    backgroundColor: 'rgba(0, 242, 255, 0.1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#64748b', font: { size: 8 } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Real-time Chart Update
+        setInterval(() => {
+            neuralChart.data.datasets[0].data.shift();
+            neuralChart.data.datasets[0].data.push(Math.floor(Math.random() * 50) + 10);
+            neuralChart.update('none');
+        }, 2000);
+
+        // Command Log Simulation
+        const logs = [
+            { t: 'INFO', m: 'Sensors recalibrated to center.', c: 'text-gray-400' },
+            { t: 'CMD', m: 'Requesting diagnostic dump...', c: 'text-cyan-400' },
+            { t: 'SUCCESS', m: 'Dump complete. Error count: 0.', c: 'text-green-400' },
+            { t: 'WARN', m: 'External temperature fluctuation detected (+2%)', c: 'text-yellow-400' },
+            { t: 'INFO', m: 'Ping to uplink: 14ms', c: 'text-gray-400' },
+            { t: 'CMD', m: 'EXEC: move_to_origin(0,0,0)', c: 'text-cyan-400' }
+        ];
+
+        const logContainer = document.getElementById('logContent');
+        setInterval(() => {
+            const entry = logs[Math.floor(Math.random() * logs.length)];
+            const time = (performance.now() / 1000).toFixed(4);
+            const div = document.createElement('div');
+            div.className = entry.c;
+            div.innerHTML = `[${time}] ${entry.m}`;
+            logContainer.appendChild(div);
+            
+            // Auto scroll
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            // Maintain max entries
+            if (logContainer.children.length > 25) {
+                // Keep the scanline
+                if (logContainer.children[1].className !== 'scanline-effect') {
+                    logContainer.removeChild(logContainer.children[1]);
+                }
+            }
+        }, 3000);
+
+    </script>
+</body>
+</html>
