@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-[#05050a]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Robotics | Control Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;800&display=swap');
+
+        body { font-family: 'JetBrains Mono', monospace; }
+        h1, h2, h3 { font-family: 'Orbitron', sans-serif; }
+        
+        .glass {
+            background: rgba(10, 10, 20, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+        }
+        
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(0, 243, 255, 0.1);
+            animation: scan 4s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(100vh); }
+        }
+
+        .neon-text { text-shadow: 0 0 10px rgba(0, 243, 255, 0.8); }
+        .neon-border { box-shadow: 0 0 15px rgba(0, 243, 255, 0.1); }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden text-slate-200 p-4">
+    <div class="scanline pointer-events-none"></div>
+
+    <!-- Header -->
+    <header class="flex justify-between items-center glass p-4 mb-4 rounded-lg">
+        <div class="flex items-center gap-4">
+            <div class="text-[#00f3ff] text-2xl font-black italic tracking-widest">AI ROBOTICS</div>
+            <div class="h-6 w-[1px] bg-white/20"></div>
+            <div class="text-xs uppercase">Robot ID: HR-01</div>
+        </div>
+        <div id="clock" class="text-xl font-bold text-[#00f3ff]">00:00:00</div>
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#00ff9d] animate-pulse"></span>
+            <span class="text-sm">Kết nối: Ổn định</span>
+        </div>
+    </header>
+
+    <!-- Main Grid -->
+    <main class="grid grid-cols-12 gap-4 h-[calc(100vh-120px)]">
+        
+        <!-- Left Sidebar -->
+        <section class="col-span-2 glass rounded-xl p-4 flex flex-col gap-4">
+            <h2 class="text-sm uppercase tracking-tighter text-[#00b8ff]">Bảng Điều Khiển</h2>
+            <button class="w-full py-2 bg-[#00f3ff]/10 border border-[#00f3ff] hover:bg-[#00f3ff]/30 transition-all text-[#00f3ff] text-xs uppercase font-bold">Start Sequence</button>
+            <button class="w-full py-2 bg-white/5 border border-white/20 hover:bg-[#ff3366]/20 hover:border-[#ff3366] transition-all text-white text-xs uppercase font-bold">Emergency Stop</button>
+            <div class="mt-auto space-y-2">
+                <label class="flex justify-between text-[10px]">Sensor Arrays <span>ACTIVE</span></label>
+                <input type="range" class="w-full accent-[#00f3ff]">
+            </div>
+        </section>
+
+        <!-- Main Viewport -->
+        <section class="col-span-7 glass rounded-xl relative overflow-hidden flex flex-col items-center justify-center">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent"></div>
+            <div class="z-10 text-center">
+                <div class="w-64 h-64 border-4 border-[#00f3ff]/30 rounded-full animate-spin flex items-center justify-center">
+                    <div class="w-48 h-48 border-2 border-[#ff00aa]/30 rounded-full animate-pulse"></div>
+                </div>
+                <p class="mt-8 text-[#00f3ff] tracking-[0.2em] uppercase">Neural Mapping In Progress...</p>
+            </div>
+        </section>
+
+        <!-- Right Sidebar -->
+        <section class="col-span-3 glass rounded-xl p-4 space-y-6">
+            <h2 class="text-sm uppercase tracking-tighter text-[#ff00aa]">Thông Số Hệ Thống</h2>
+            <div>
+                <div class="flex justify-between text-[10px] mb-1"><span>Battery</span><span>84%</span></div>
+                <div class="h-2 bg-white/10 rounded-full overflow-hidden"><div class="h-full w-[84%] bg-[#00ff9d]"></div></div>
+            </div>
+            <div>
+                <div class="flex justify-between text-[10px] mb-1"><span>Core Temp</span><span>42°C</span></div>
+                <div class="h-2 bg-white/10 rounded-full overflow-hidden"><div class="h-full w-[42%] bg-[#ffd700]"></div></div>
+            </div>
+            <div class="bg-[#05050a] p-4 rounded border border-white/10 mt-4">
+                <canvas id="miniChart" height="150"></canvas>
+            </div>
+        </section>
+
+        <!-- Bottom Panel -->
+        <section class="col-span-12 glass rounded-xl p-4 flex gap-4">
+            <div class="w-1/3 border-r border-white/10 overflow-y-auto pr-4" id="log-container">
+                <h3 class="text-xs mb-2 text-[#00b8ff]">Nhật ký Hệ thống</h3>
+                <div id="logs" class="text-[10px] space-y-1 font-mono"></div>
+            </div>
+            <div class="w-2/3 h-full">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <footer class="text-center pt-2 text-[10px] opacity-50">
+        <a href="www.phamhoanganhtokens.com" target="_blank" class="hover:text-[#00f3ff] transition-colors">www.phamhoanganhtokens.com</a>
+    </footer>
+
+    <script>
+        // Clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('vi-VN');
+        }, 1000);
+
+        // Logs
+        const logContainer = document.getElementById('logs');
+        const msgs = ['[INFO] Khởi tạo hệ thống...', '[INFO] Kết nối neural...', '[OK] Đồng bộ hóa cảm biến...', '[WARN] Mức năng lượng thấp', '[INFO] Đang tối ưu hóa tài nguyên...'];
+        setInterval(() => {
+            const p = document.createElement('p');
+            p.innerText = `> ${new Date().toLocaleTimeString()} ${msgs[Math.floor(Math.random() * msgs.length)]}`;
+            logContainer.prepend(p);
+            if(logContainer.children.length > 5) logContainer.lastChild.remove();
+        }, 2000);
+
+        // Charts
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 10}, (_, i) => i),
+                datasets: [{
+                    label: 'Neural Network Load',
+                    data: [12, 19, 3, 5, 2, 3, 10, 15, 8, 12],
+                    borderColor: '#00f3ff',
+                    fill: true,
+                    backgroundColor: 'rgba(0, 243, 255, 0.1)'
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false }, x: { display: false } } }
+        });
+
+        const ctx2 = document.getElementById('miniChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: ['L1', 'L2', 'R1', 'R2', 'CORE'],
+                datasets: [{ data: [65, 59, 80, 81, 56], backgroundColor: '#ff00aa' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false } } }
+        });
+    </script>
+</body>
+</html>
